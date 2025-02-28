@@ -1,1 +1,3 @@
-console.log('Hello, world 2!');
+(async () => {
+  console.log('Happy hacking :)');
+})();
