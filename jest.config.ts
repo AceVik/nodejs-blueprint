@@ -5,9 +5,9 @@ const config: Config = {
   transform: {
     '^.+\\.tsx?$': 'ts-jest',
   },
-  roots: ['<rootDir>/src'/*, '<rootDir>/tests'*/],
+  roots: ['<rootDir>/src' /*, '<rootDir>/tests'*/],
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    '^@app/(.*)$': '<rootDir>/src/$1',
   },
 };
 
