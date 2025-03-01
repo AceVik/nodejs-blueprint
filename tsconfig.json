@@ -7,8 +7,6 @@
     "rootDir": "./src",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "strict": true,
     "types": ["node", "jest"],
     "baseUrl": "./src",
