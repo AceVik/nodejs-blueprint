@@ -1,42 +1,24 @@
 {
-  "name": "backend-blueprint",
-  "version": "1.0.0",
-  "description": "Simple nodejs typescript blueprint.",
-  "main": "index.js",
-  "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "build": "tsc && tsc-alias",
-    "start": "node dist/index.js",
-    "lint": "eslint . --ext .ts,.js",
-    "lint:fix": "eslint . --ext .ts,.js --fix",
-    "test": "jest --config ./jest.config.ts",
-    "test:watch": "jest --watch --config ./jest.config.ts"
-  },
-  "keywords": [
-    "typescript",
-    "nodejs",
-    "blueprint"
+  "name": "monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/**"
   ],
-  "author": "",
-  "license": "MIT",
+  "scripts": {
+    "dev": "pnpm --filter app dev",
+    "build": "pnpm --filter app build",
+    "build:micro": "pnpm --filter @micro/routes build",
+    "lint": "pnpm --filter app lint",
+    "test": "pnpm --filter app test"
+  },
   "devDependencies": {
+    "@typescript-eslint/parser": "^8.26.0",
+    "@typescript-eslint/eslint-plugin": "^8.26.0",
     "@eslint/eslintrc": "^3.3.0",
-    "@types/jest": "^29.5.14",
-    "@types/node": "^22.13.5",
+    "typescript": "^5.8.2",
+    "tsc-alias": "^1.8.11",
     "eslint": "^9.21.0",
     "jest": "^29.7.0",
-    "ts-jest": "^29.2.6",
-    "tsc-alias": "^1.8.11",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.2"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
-  "dependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.25.0",
-    "@typescript-eslint/parser": "^8.25.0"
+    "tsx": "^4.19.3"
   }
 }

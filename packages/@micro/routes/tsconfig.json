@@ -6,12 +6,14 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "esModuleInterop": true,
-    "resolveJsonModule": true,
     "strict": true,
+    "declaration": true,
+    "declarationMap": true,
     "types": ["node", "jest"],
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
-      "@app/*": ["*"],
+      "@micro/routes": ["src/index.ts"],
+      "@micro/routes/*": ["src/*"]
     }
   },
   "tsc-alias": {
@@ -20,7 +22,11 @@
   },
   "include": [
     "src/**/*",
+    "tests/**/*",
     "eslint.config.mjs"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

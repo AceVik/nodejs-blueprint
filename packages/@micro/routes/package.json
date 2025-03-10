@@ -1,0 +1,40 @@
+{
+  "name": "@micro/routes",
+  "version": "1.0.0",
+  "description": "A micro framework to build restful routes.",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./*": {
+      "import": "./dist/*/index.js",
+      "require": "./dist/*/index.js",
+      "types": "./dist/*/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc && tsc-alias",
+    "prepublishOnly": "pnpm build",
+    "test": "jest"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.13.9",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.6",
+    "tsc-alias": "^1.8.11",
+    "typescript": "^5.8.2"
+  },
+  "dependencies": {
+    "@anatine/zod-openapi": "^2.2.7",
+    "find-my-way": "^9.2.0",
+    "openapi3-ts": "^4.4.0",
+    "zod": "^3.24.2"
+  }
+}
