@@ -4,6 +4,7 @@ import type { RouteParam } from './param';
 
 export class Route<TParams = never> {
   constructor(
+    public readonly name: string,
     public readonly path: string,
     public readonly method: RequestMethod,
     public readonly handler: RouteHandler<TParams>,

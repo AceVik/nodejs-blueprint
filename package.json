@@ -9,7 +9,8 @@
     "build": "pnpm --filter app build",
     "build:micro": "pnpm --filter @micro/routes build",
     "lint": "pnpm --filter app lint",
-    "test": "pnpm --filter app test"
+    "test": "pnpm --filter app test",
+    "test:micro": "pnpm --filter @micro/routes-tests test"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^8.26.0",

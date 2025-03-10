@@ -1,7 +1,8 @@
 import fs from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { requestMethods } from '@micro/routes/http';
 import { createHttp2Server } from '@micro/routes';
+import { importRoutes } from '@micro/routes/router';
 
 const port = parseInt(process.env.PORT || '3000', 10);
 const host = '0.0.0.0';
@@ -29,6 +30,10 @@ console.log(fromQuery(syncConverter));
 console.log(requestMethods);
 
 (async () => {
+
+  const routes = await importRoutes(join(__dirname, 'routes'));
+  console.log(routes);
+
   const http2Server = createHttp2Server({
     key: fs.readFileSync(resolve(__dirname, 'certs', 'server.key')),
     cert: fs.readFileSync(resolve(__dirname, 'certs', 'server.crt')),

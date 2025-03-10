@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "esModuleInterop": true,
+    "strict": true,
+    "baseUrl": "./tests",
+    "paths": {
+      "@tests/*": ["*"]
+    },
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "tests/**/*",
+    "eslint.config.mjs"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

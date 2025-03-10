@@ -15,10 +15,15 @@ function setMethodFromExportName(exportName: string): RequestMethod {
 
 async function loadRoutesFromFile(routesFilepath: string, routePath: string): Promise<Route[]> {
   const moduleExports = await import(`file://${routesFilepath}`);
+
   const routes: Route[] = [];
   for (const exportName in moduleExports) {
     const exported = moduleExports[exportName];
     if (exported instanceof Route) {
+      Object.defineProperty(exported, 'name', {
+        value: exportName,
+      });
+
       if (!exported.method?.length) {
         Object.defineProperty(exported, 'method', {
           value: setMethodFromExportName(exportName),

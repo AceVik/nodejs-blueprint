@@ -9,3 +9,5 @@ type PathPart = {
 const rootPart: PathPart = {
   value: '/',
 };
+
+export * from './import-routes';

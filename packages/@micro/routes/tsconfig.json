@@ -22,7 +22,6 @@
   },
   "include": [
     "src/**/*",
-    "tests/**/*",
     "eslint.config.mjs"
   ],
   "exclude": [
