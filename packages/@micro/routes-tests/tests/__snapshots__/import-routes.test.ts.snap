@@ -1,0 +1,48 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`importRoutes > should import all routes from the built package and match the snapshot 1`] = `
+[
+  Route {
+    "handler": [Function],
+    "method": "GET",
+    "name": "getStuff",
+    "params": undefined,
+    "path": "/",
+  },
+  Route {
+    "handler": [Function],
+    "method": "POST",
+    "name": "postStuff",
+    "params": undefined,
+    "path": "/",
+  },
+  Route {
+    "handler": [Function],
+    "method": "GET",
+    "name": "getVideoComments",
+    "params": undefined,
+    "path": "/video/:id/comments",
+  },
+  Route {
+    "handler": [Function],
+    "method": "GET",
+    "name": "getStuff",
+    "params": undefined,
+    "path": "/video/:id",
+  },
+  Route {
+    "handler": [Function],
+    "method": "PUT",
+    "name": "putStuff",
+    "params": undefined,
+    "path": "/video/:id",
+  },
+  Route {
+    "handler": [Function],
+    "method": "POST",
+    "name": "postStuff",
+    "params": undefined,
+    "path": "/video",
+  },
+]
+`;

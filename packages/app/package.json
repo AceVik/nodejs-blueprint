@@ -1,5 +1,6 @@
 {
   "name": "app",
+  "type": "module",
   "version": "1.0.0",
   "description": "Production backend application.",
   "main": "dist/index.js",

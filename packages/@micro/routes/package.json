@@ -1,5 +1,6 @@
 {
   "name": "@micro/routes",
+  "type": "module",
   "version": "1.0.0",
   "description": "A micro framework to build restful routes.",
   "main": "dist/index.js",
@@ -29,8 +30,8 @@
   },
   "dependencies": {
     "@anatine/zod-openapi": "^2.2.7",
-    "find-my-way": "^9.2.0",
     "openapi3-ts": "^4.4.0",
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0",
     "zod": "^3.24.2"
   }
 }

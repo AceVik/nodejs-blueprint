@@ -9,7 +9,7 @@
     "strict": true,
     "declaration": true,
     "declarationMap": true,
-    "types": ["node", "jest"],
+    "types": ["node"],
     "baseUrl": ".",
     "paths": {
       "@micro/routes": ["src/index.ts"],

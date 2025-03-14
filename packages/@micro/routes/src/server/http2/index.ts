@@ -1,1 +1,0 @@
-export { addHttp2Middleware } from './middleware.handler';

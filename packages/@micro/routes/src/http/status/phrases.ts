@@ -1,3 +1,5 @@
+import type { RecognizedString } from 'uWebSockets.js';
+import { toRecognizedString } from '@micro/routes/utils';
 import type { HttpStatusCode } from './http-status-code.type';
 import { HttpStatus } from './http-status.enum';
 
@@ -76,6 +78,20 @@ const status2phrase = new Map<HttpStatusCode, string>([
   [HttpStatus.NETWORK_AUTHENTICATION_REQUIRED, 'Network Authentication Required'],
 ]);
 
+const status2buffer = new Map<HttpStatusCode, RecognizedString>();
+for (const [status, phrase] of status2phrase.entries()) {
+  status2buffer.set(status, toRecognizedString(`${status} ${phrase}`));
+}
+
+const unknownStatusPhrase = 'Unknown Status';
+
 export const getStatusPhrase = (status: HttpStatusCode, fallbackPhrase?: string): string => {
-  return status2phrase.get(status) || fallbackPhrase || 'Unknown Status';
+  return status2phrase.get(status) || fallbackPhrase || unknownStatusPhrase;
+};
+
+export const getStatusBuffer = (
+  status: HttpStatusCode,
+  fallback?: RecognizedString,
+): RecognizedString => {
+  return status2buffer.get(status) || fallback || `${status} ${unknownStatusPhrase}`;
 };

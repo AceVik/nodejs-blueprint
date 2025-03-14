@@ -6,6 +6,7 @@ import type {
   RouteParamAdapterPredicate,
 } from './adapter.type';
 import { applyFilterPredicate, applyPickPredicate, defaultFilterPredicate, defaultPickPredicate } from './helpers';
+import { NotImplementedError } from '@micro/routes/http/errors';
 
 // ----------------------
 // Adapter for 'path' parameters
@@ -15,6 +16,7 @@ export function createPathAdapter<T>(
   predicate?: RouteParamAdapterPredicate<T>,
 ): RouteParamAdapter<T> {
   return function (this: RouteParam<T>, req: Request): T | T[] {
+    /*
     const paramValue = req.pathParams.get(this.name);
     if (paramValue === undefined) return this.schema.parse(undefined);
 
@@ -44,6 +46,8 @@ export function createPathAdapter<T>(
         return applyFilterPredicate([paramValue], effectivePredicate, this.schema);
       }
       return this.schema.parse(paramValue);
-    }
+    }*/
+
+    throw new NotImplementedError('Path adapter is not implemented');
   };
 }

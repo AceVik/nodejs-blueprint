@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { readdir } from 'node:fs/promises';
 import { Route } from '@micro/routes/route';
 import { requestMethods, type RequestMethod } from '@micro/routes/http';
+import * as process from 'node:process';
 
 
 function setMethodFromExportName(exportName: string): RequestMethod {

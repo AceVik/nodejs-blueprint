@@ -3,13 +3,13 @@ import type { RouteOptions } from './route-options.type';
 import { RouteHandler, type RouteHandlerArgs } from './route-handler.type';
 import { Route } from './route.class';
 
-export function route<TParams = RouteHandlerArgs<never>>(handler: RouteHandler<TParams>): Route<TParams>;
-export function route<TParams = RouteHandlerArgs<never>>(options: RouteOptions<TParams>, handler: RouteHandler<TParams>): Route<TParams>;
-export function route<TParams = RouteHandlerArgs<never>>(
+export function route<TParams = RouteHandlerArgs<unknown>>(handler: RouteHandler<TParams>): Route<TParams>;
+export function route<TParams = RouteHandlerArgs<unknown>>(options: RouteOptions<TParams>, handler: RouteHandler<TParams>): Route<TParams>;
+export function route<TParams = RouteHandlerArgs<unknown>>(
   optionsOrHandler: RouteOptions<TParams> | RouteHandler<TParams>,
   handler?: RouteHandler<TParams>,
 ): Route<TParams>;
-export function route<TParams = RouteHandlerArgs<never>>(
+export function route<TParams = RouteHandlerArgs<unknown>>(
   optionsOrHandler: RouteOptions<TParams> | RouteHandler<TParams>,
   handler?: RouteHandler<TParams>,
 ): Route<TParams> {
