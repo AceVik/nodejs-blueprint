@@ -1,2 +1,2 @@
-export * from './import-routes.ts';
-export * from './find-routes.ts';
+export * from './import-routes';
+export * from './find-routes';

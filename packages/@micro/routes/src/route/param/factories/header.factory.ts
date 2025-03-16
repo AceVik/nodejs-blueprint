@@ -1,4 +1,4 @@
-import { z, type ZodSchema } from '@micro/routes/zod';
+import { z, type ZodSchema } from 'zod';
 import type { RouteParam } from '../route-param.class';
 import type { RouteParamType } from '../route-param-types.type';
 import { fromParam, lastFromParam, allFromParam } from './param.factory';

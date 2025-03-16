@@ -1,4 +1,4 @@
-import type { ZodSchema } from '@micro/routes/zod';
+import type { ZodSchema } from 'zod';
 import type { Request } from '@micro/routes/http';
 import type { RouteParamType } from './route-param-types.type';
 

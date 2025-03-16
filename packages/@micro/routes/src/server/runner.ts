@@ -2,10 +2,10 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { Worker, isMainThread, workerData } from 'node:worker_threads';
 import { SSLApp, App, type RecognizedString } from 'uWebSockets.js';
-import { findRoutesFolder, importRoutes } from '@micro/routes/router/index.ts';
-import type { CreateRoutesAppOptions } from './create-routes-app-params.type.ts';
-import type { WorkerOptions } from './worker-options.type.ts';
-import type { ListenCallback, UWSListenCallback } from './listen-callback.type.ts';
+import { findRoutesFolder, importRoutes } from '@micro/routes/router';
+import type { CreateRoutesAppOptions } from './create-routes-app-params.type';
+import type { WorkerOptions } from './worker-options.type';
+import type { ListenCallback, UWSListenCallback } from './listen-callback.type';
 
 const __filename = fileURLToPath(import.meta.url);
 

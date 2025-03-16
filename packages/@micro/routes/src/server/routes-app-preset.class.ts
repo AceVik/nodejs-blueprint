@@ -1,8 +1,8 @@
 import type { RecognizedString } from 'uWebSockets.js';
-import { toRecognizedString } from '@micro/routes/utils/index.ts';
-import type { ListenCallback } from './listen-callback.type.ts';
-import type { CreateRoutesAppOptions } from './create-routes-app-params.type.ts';
-import { runRoutes } from './runner.ts';
+import { toRecognizedString } from '@micro/routes/utils';
+import type { ListenCallback } from './listen-callback.type';
+import type { CreateRoutesAppOptions } from './create-routes-app-params.type';
+import { runRoutes } from './runner';
 
 const defaultHost = toRecognizedString('127.0.0.1');
 

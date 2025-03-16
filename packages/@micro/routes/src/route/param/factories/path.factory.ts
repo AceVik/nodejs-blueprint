@@ -1,7 +1,7 @@
+import { z, type ZodSchema } from 'zod';
 import type { RouteParam } from '../route-param.class';
 import type { RouteParamType } from '../route-param-types.type';
 import { fromParam } from './param.factory';
-import { z, type ZodSchema } from '@micro/routes/zod';
 
 const sourceType: RouteParamType = 'path';
 

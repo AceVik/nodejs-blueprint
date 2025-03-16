@@ -1,2 +1,2 @@
-export * from './server/index.ts';
-export * from './route/index.ts';
+export * from './server';
+export * from './route';

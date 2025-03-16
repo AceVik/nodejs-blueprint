@@ -31,7 +31,7 @@ export class Route<S extends RouteParams> {
       const params: Record<string, unknown> = {};
       if (this.params)
         for (const key in this.params)
-          params[key] = this.params[key].getValue(req);
+          params[key] = this.params[key]?.getValue(req);
 
       const routeHandlerArgs = {
         req,

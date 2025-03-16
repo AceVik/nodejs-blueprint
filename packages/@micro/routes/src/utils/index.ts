@@ -1,1 +1,1 @@
-export * from './to-regignized-string.util.ts';
+export * from './to-regignized-string.util';

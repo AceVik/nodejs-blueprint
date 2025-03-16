@@ -1,5 +1,5 @@
-import type { RequestMethod } from '@micro/routes/http/index.ts';
-import type { RouteParams } from './param/route-params.type.js';
+import type { RequestMethod } from '@micro/routes/http';
+import type { RouteParams } from './param/route-params.type';
 
 
 export type RouteOptions<S extends RouteParams> = {
