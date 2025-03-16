@@ -1,6 +1,6 @@
 import type { ZodSchema } from 'zod';
-import type { Request } from '@micro/routes/http';
-import type { RouteParamType } from './route-param-types.type';
+import type { Request } from '../../http/index.js';
+import type { RouteParamType } from './route-param-types.type.js';
 
 export class RouteParam<T> {
   constructor(

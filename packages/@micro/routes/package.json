@@ -4,16 +4,6 @@
   "version": "1.0.0",
   "description": "A micro framework to build restfull routes.",
   "main": "lib/index.js",
-  "exports": {
-    ".": "./lib/index.js",
-    "./http": "./lib/http/index.js",
-    "./http/status": "./lib/http/status/index.js",
-    "./route": "./lib/route/index.js",
-    "./router": "./lib/router/index.js",
-    "./server": "./lib/server/index.js",
-    "./utils": "./lib/utils/index.js",
-    "./**": "./lib/**"
-  },
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "pnpm build"

@@ -1,4 +1,4 @@
-import { getStatusPhrase, type HttpStatusCode } from '@micro/routes/http/status';
+import { getStatusPhrase, type HttpStatusCode } from '../../http/index.js';
 
 export class HttpError extends Error {
   public get statusPhrase() {

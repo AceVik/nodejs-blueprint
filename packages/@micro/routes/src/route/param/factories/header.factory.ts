@@ -1,7 +1,7 @@
 import { z, type ZodSchema } from 'zod';
-import type { RouteParam } from '../route-param.class';
-import type { RouteParamType } from '../route-param-types.type';
-import { fromParam, lastFromParam, allFromParam } from './param.factory';
+import type { RouteParam } from '../route-param.class.js';
+import type { RouteParamType } from '../route-param-types.type.js';
+import { fromParam, lastFromParam, allFromParam } from './param.factory.js';
 
 const sourceType: RouteParamType = 'header';
 

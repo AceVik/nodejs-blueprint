@@ -1,7 +1,7 @@
 import type { RecognizedString } from 'uWebSockets.js';
-import { toRecognizedString } from '@micro/routes/utils';
-import type { HttpStatusCode } from './http-status-code.type';
-import { HttpStatus } from './http-status.enum';
+import { toRecognizedString } from '../../utils/index.js';
+import type { HttpStatusCode } from './http-status-code.type.js';
+import { HttpStatus } from './http-status.enum.js';
 
 const status2phrase = new Map<HttpStatusCode, string>([
   // Informational responses

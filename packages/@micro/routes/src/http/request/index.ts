@@ -1,2 +1,2 @@
-export * from './request.class';
-export * from './handlers';
+export * from './request.class.js';
+export * from './handlers/index.js';

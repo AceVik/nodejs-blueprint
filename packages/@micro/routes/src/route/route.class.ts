@@ -1,8 +1,7 @@
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
-import { type RequestMethod, Request, Response } from '@micro/routes/http';
-import type { RouteHandler, RouteHandlerArgs } from './route-handler.type';
-import type { RouteParams, RouteParamValues } from './param/route-params.type';
-import { getStatusBuffer, HttpStatus } from '@micro/routes/http/status';
+import type { RouteHandler, RouteHandlerArgs } from './route-handler.type.js';
+import type { RouteParams, RouteParamValues } from './param/route-params.type.js';
+import { type RequestMethod, Request, Response, getStatusBuffer, HttpStatus } from '../http/index.js';
 
 export class Route<S extends RouteParams> {
 

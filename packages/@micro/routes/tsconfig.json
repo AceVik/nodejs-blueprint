@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": ["ESNext"],
     "useUnknownInCatchVariables": false,
     "noUncheckedIndexedAccess": true,
@@ -13,12 +13,9 @@
     "strict": true,
     "declaration": true,
     "declarationMap": true,
+    "forceConsistentCasingInFileNames": true,
     "types": ["node"],
-    "baseUrl": ".",
-    "paths": {
-      "@micro/routes": ["src/index.ts"],
-      "@micro/routes/*": ["src/*"]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src/**/*",

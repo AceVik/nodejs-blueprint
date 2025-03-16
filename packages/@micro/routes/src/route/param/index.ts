@@ -1,2 +1,2 @@
-export * from './route-param.class';
-export * from './factories';
+export * from './route-param.class.js';
+export * from './factories/index.js';

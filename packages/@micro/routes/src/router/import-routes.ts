@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { readdir } from 'node:fs/promises';
-import { Route } from '@micro/routes/route';
-import { requestMethods, type RequestMethod } from '@micro/routes/http';
+import { Route } from '../route/index.js';
+import { requestMethods, type RequestMethod } from '../http/index.js';
 
 
 function setMethodFromExportName(exportName: string): RequestMethod {

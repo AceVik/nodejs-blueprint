@@ -1,5 +1,5 @@
-import { HttpStatus } from '@micro/routes/http/status';
-import { HttpError } from './http.error';
+import { HttpStatus } from '../../http/index.js';
+import { HttpError } from './http.error.js';
 
 export class RangeNotSatisfiableError extends HttpError {
   constructor(message?: string) {

@@ -1,3 +1,3 @@
-export * from './header.factory';
-export * from './path.factory';
-export * from './query.factory';
+export * from './header.factory.js';
+export * from './path.factory.js';
+export * from './query.factory.js';

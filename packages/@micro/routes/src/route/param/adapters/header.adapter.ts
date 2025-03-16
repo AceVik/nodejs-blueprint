@@ -1,9 +1,9 @@
-import type { Request } from '@micro/routes/http';
-import type { RouteParam } from '@micro/routes/route/param';
+import type { Request } from '../../../http/index.js';
+import type { RouteParam } from '../../../route/index.js';
 import type {
   AdapterType,
   RouteParamAdapter,
-} from './adapter.type';
+} from './adapter.type.js';
 
 // ----------------------
 // Adapter for 'header' parameters

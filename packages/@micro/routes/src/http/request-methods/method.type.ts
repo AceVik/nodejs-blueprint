@@ -8,7 +8,7 @@ import {
   REQUEST_METHOD_HEAD,
   REQUEST_METHOD_CONNECT,
   REQUEST_METHOD_TRACE,
-} from './methods';
+} from './methods.js';
 
 export const requestMethods = [
   REQUEST_METHOD_GET,

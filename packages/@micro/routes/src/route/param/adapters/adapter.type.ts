@@ -1,4 +1,4 @@
-import type { Request } from '@micro/routes/http';
+import type { Request } from '../../../http/index.js';
 
 export const adapterTypes = ['last', 'first', 'all'] as const;
 export type AdapterType = typeof adapterTypes[number];

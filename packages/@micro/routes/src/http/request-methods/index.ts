@@ -1,2 +1,2 @@
-export * from './methods';
-export * from './method.type';
+export * from './methods.js';
+export * from './method.type.js';

@@ -1,13 +1,13 @@
 import { z, type ZodSchema } from 'zod';
-import type { RouteParamType } from '../route-param-types.type';
+import type { RouteParamType } from '../route-param-types.type.js';
 import {
   type AdapterType,
   type RouteParamAdapter,
   createHeaderAdapter,
   createPathAdapter,
   createQueryAdapter,
-} from '../adapters';
-import { createRouteParam, type RouteParam } from '../route-param.class';
+} from '../adapters/index.js';
+import { createRouteParam, type RouteParam } from '../route-param.class.js';
 
 // ---------------------------------------------------
 // Adapter Builders: one function per parameter source

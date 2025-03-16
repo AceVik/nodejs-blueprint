@@ -1,8 +1,8 @@
-import type { RequestMethod } from '@micro/routes/http';
-import type { RouteHandler } from './route-handler.type';
-import type { RouteParams } from './param/route-params.type';
-import type { RouteOptions } from './route-options.type';
-import { Route } from './route.class';
+import type { RequestMethod } from '../http/index.js';
+import type { RouteHandler } from './route-handler.type.js';
+import type { RouteParams } from './param/route-params.type.js';
+import type { RouteOptions } from './route-options.type.js';
+import { Route } from './route.class.js';
 
 // Info: Empty stuff will be set by router/importRoutes function
 const empty = '';

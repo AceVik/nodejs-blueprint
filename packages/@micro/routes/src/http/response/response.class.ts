@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
-import { getStatusPhrase, type HttpStatusCode } from '@micro/routes/http/status';
+import { getStatusPhrase, type HttpStatusCode } from '../../http/index.js';
 
 export class Response {
   public get raw(): HttpResponse {

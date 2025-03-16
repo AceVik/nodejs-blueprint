@@ -1,3 +1,3 @@
-export * from './headers-handler.class';
-export * from './path-params-handler.class';
-export * from './query-params-handler.type';
+export * from './headers-handler.class.js';
+export * from './path-params-handler.class.js';
+export * from './query-params-handler.type.js';

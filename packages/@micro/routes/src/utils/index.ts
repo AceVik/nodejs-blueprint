@@ -1,1 +1,1 @@
-export * from './to-regignized-string.util';
+export * from './to-regignized-string.util.js';

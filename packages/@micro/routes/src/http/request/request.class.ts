@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
-import type { QueryParamsHandler, RequestMethod } from '@micro/routes/http';
-import { PathParamsHandler, HeadersHandler } from './handlers';
+import type { QueryParamsHandler, RequestMethod } from '../../http/index.js';
+import { PathParamsHandler, HeadersHandler } from './handlers/index.js';
 
 const dec = new TextDecoder('ascii');
 

@@ -1,3 +1,3 @@
-export * from './http-status-code.type';
-export * from './http-status.enum';
-export * from './phrases';
+export * from './http-status-code.type.js';
+export * from './http-status.enum.js';
+export * from './phrases.js';
