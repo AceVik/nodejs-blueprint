@@ -14,8 +14,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@micro/routes": "workspace:*",
-    "zod": "^3.24.2"
+    "@micro/routes": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.8.2",

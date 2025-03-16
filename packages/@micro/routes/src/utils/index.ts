@@ -1,2 +1,1 @@
-export * from './is-async-function.util';
-export * from './to-regignized-string.util';
+export * from './to-regignized-string.util.ts';

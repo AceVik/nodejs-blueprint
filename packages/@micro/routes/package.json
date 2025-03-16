@@ -21,17 +21,23 @@
     "prepublishOnly": "pnpm build"
   },
   "files": [
-    "dist"
+    "dist",
+    "index.d.ts"
   ],
   "devDependencies": {
     "@types/node": "^22.13.9",
     "tsc-alias": "^1.8.11",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "zod": "^3.24.2"
+  },
+  "peerDependencies": {
+    "zod": "^3.24.2",
+    "@anatine/zod-openapi": "^2.2.7",
+    "openapi3-ts": "^4.4.0"
   },
   "dependencies": {
     "@anatine/zod-openapi": "^2.2.7",
     "openapi3-ts": "^4.4.0",
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0",
-    "zod": "^3.24.2"
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0"
   }
 }

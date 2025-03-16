@@ -1,4 +1,4 @@
-import { WorkerOptions } from './worker-options.type';
+import { WorkerOptions } from './worker-options.type.ts';
 
 export type CreateRoutesAppOptions = WorkerOptions & {
   /**

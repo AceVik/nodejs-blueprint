@@ -1,8 +1,7 @@
 import { join } from 'node:path';
 import { readdir } from 'node:fs/promises';
-import { Route } from '@micro/routes/route';
-import { requestMethods, type RequestMethod } from '@micro/routes/http';
-import * as process from 'node:process';
+import { Route } from '@micro/routes/route/index.js';
+import { requestMethods, type RequestMethod } from '@micro/routes/http/index.ts';
 
 
 function setMethodFromExportName(exportName: string): RequestMethod {
@@ -14,25 +13,25 @@ function setMethodFromExportName(exportName: string): RequestMethod {
   return 'GET';
 }
 
-async function loadRoutesFromFile(routesFilepath: string, routePath: string): Promise<Route[]> {
+async function loadRoutesFromFile(routesFilepath: string, routePath: string): Promise<Route<never>[]> {
   const moduleExports = await import(`file://${routesFilepath}`);
 
-  const routes: Route[] = [];
+  const routes: Route<never>[] = [];
   for (const exportName in moduleExports) {
     const exported = moduleExports[exportName];
     if (exported instanceof Route) {
-      Object.defineProperty(exported, 'name', {
+      Object.defineProperty(exported, 'name' as keyof Route<never>, {
         value: exportName,
       });
 
       if (!exported.method?.length) {
-        Object.defineProperty(exported, 'method', {
+        Object.defineProperty(exported, 'method' as keyof Route<never>, {
           value: setMethodFromExportName(exportName),
         });
       }
 
       if (!exported.path?.length) {
-        Object.defineProperty(exported, 'path', {
+        Object.defineProperty(exported, 'path' as keyof Route<never>, {
           value: routePath,
         });
       }
@@ -44,10 +43,10 @@ async function loadRoutesFromFile(routesFilepath: string, routePath: string): Pr
   return routes;
 }
 
-export async function importRoutes(routesPath: string, basePath: string = '/'): Promise<Route[]> {
+export async function importRoutes(routesPath: string, basePath: string = '/'): Promise<Route<never>[]> {
   let lookingForRoutes = true;
   return (await Promise.all((await readdir(routesPath, { withFileTypes: true })).map((entry) => {
-    return new Promise<Route[]>(async (resolve) => {
+    return new Promise<Route<never>[]>(async (resolve) => {
       if (lookingForRoutes && entry.isFile() && entry.name.startsWith('routes') && (entry.name.endsWith('.js') || entry.name.endsWith('.ts'))) {
         lookingForRoutes = false;
         resolve(await loadRoutesFromFile(join(routesPath, entry.name), basePath));

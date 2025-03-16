@@ -1,11 +1,11 @@
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { Worker, isMainThread, workerData } from 'node:worker_threads';
-import { SSLApp, App, type RecognizedString, type us_listen_socket } from 'uWebSockets.js';
-import { findRoutesFolder, importRoutes } from '@micro/routes/router';
-import type { CreateRoutesAppOptions } from './create-routes-app-params.type';
-import type { WorkerOptions } from './worker-options.type';
-import { ListenCallback, UWSListenCallback } from './listen-callback.type';
+import { SSLApp, App, type RecognizedString } from 'uWebSockets.js';
+import { findRoutesFolder, importRoutes } from '@micro/routes/router/index.ts';
+import type { CreateRoutesAppOptions } from './create-routes-app-params.type.ts';
+import type { WorkerOptions } from './worker-options.type.ts';
+import type { ListenCallback, UWSListenCallback } from './listen-callback.type.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -38,13 +38,13 @@ export async function runRoutes(options: RunOptions<CreateRoutesAppOptions>) {
     throw new Error('runRoutes() must be called from the main thread');
   }
 
-  const { routesPath: _routesPath, workers, callback, ...workerOptions } = options;
+  const { routes_path: _routesPath, workers, callback, ...workerOptions } = options;
   const routesPath = _routesPath || await findRoutesFolder() || undefined;
   const numWorkers = options.workers || os.cpus().length;
 
   const params = {
     ...workerOptions,
-    routesPath,
+    routes_path: routesPath,
   } satisfies RunOptions<WorkerOptions>;
 
   if (numWorkers <= 1) {
@@ -98,17 +98,22 @@ export async function runRoutes(options: RunOptions<CreateRoutesAppOptions>) {
 }
 
 async function initWorker(options: RunOptions<WorkerOptions>, callback?: ListenCallback) {
-  const { routesPath, listenAtUnixSocket, host, port, unixPath, ...appOptions } = options;
+  const { routes_path, listenAtUnixSocket, host, port, unixPath, ...appOptions } = options;
   const useSSL = appOptions.key_file_name && appOptions.cert_file_name;
 
   const [routes, app] = await Promise.all([
-    importRoutes(routesPath!),
+    importRoutes(routes_path!),
     (async () => {
       return useSSL ? SSLApp(appOptions) : App(appOptions);
     })(),
   ]);
 
-  if (!isMainThread) {
+  if (isMainThread) {
+    process.on('SIGINT', () => {
+      app.close();
+      process.exit(0);
+    });
+  } else {
     const { parentPort } = await import('node:worker_threads');
     parentPort?.on('message', (msg) => {
       if (msg === 'SIGINT') {

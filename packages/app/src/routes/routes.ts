@@ -1,26 +1,29 @@
-import { route } from '@micro/routes';
+import { route, fromQuery } from '@micro/routes';
+import { z } from 'zod';
 
-export const tagsMeta = [
-  {
-    name: 'Stuff',
-    description: 'Stuff operations',
+const myRoute = route({
+  params: {
+    test: fromQuery(z.number()),
   },
-];
+}, ({ params: { test } }) => {
+  if (test === 3) {
+    console.log('test is 3');
+  }
+});
 
-// GET /
+
 export const getStuff = route({
   desc: 'Get stuff',
-}, async ({ req, res }) => {
+  params: {
+    test: fromQuery(z.number()),
+  },
+}, async ({ req, res, params }) => {
   res.send(JSON.stringify({
     method: req.method,
     url: req.url,
     userAgent: req.headers.getAll('user-agent'),
-    args: req.query.getAll('test'),
+    args: req.query.get('test'),
     remoteAddress: req.remoteAddress,
+    test: params.test,
   }));
-});
-
-// POST /
-export const postStuff = route(async ({ req, res }) => {
-  console.log(req);
 });

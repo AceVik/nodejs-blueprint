@@ -1,41 +1,56 @@
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
-import { Request, RequestMethod, Response } from '@micro/routes/http';
+import { type RequestMethod, Request, Response } from '@micro/routes/http';
 import type { RouteHandler, RouteHandlerArgs } from './route-handler.type';
-import type { RouteParam } from './param';
+import type { RouteParams, RouteParamValues } from './param/route-params.type';
 import { getStatusBuffer, HttpStatus } from '@micro/routes/http/status';
 
-export class Route<TParams = object> {
+export class Route<S extends RouteParams> {
+
+  public exec: RouteHandler<S>;
+
   constructor(
     public readonly name: string,
     public readonly path: string,
     public readonly method: RequestMethod,
-    public readonly handler: RouteHandler<TParams>,
-    public readonly params?: Record<keyof TParams, RouteParam<unknown>>,
+    handler: RouteHandler<S>,
+    public readonly params?: S,
   ) {
+    this.exec = handler;
   }
 
-  public async handleRequest(res: HttpResponse, req: HttpRequest) {
+  public async handleRequest(rawRes: HttpResponse, rawReq: HttpRequest) {
     try {
-      res.onAborted(() => {
+      rawRes.onAborted(() => {
         console.log('Request aborted');
-        res.close();
+        rawRes.close();
       });
-      const baseArgs = {
-        req: new Request(req, res),
-        res: new Response(res, req),
-      };
+
+      const req = new Request(rawReq, rawRes);
+      const res = new Response(rawRes, rawReq);
+
+      const params: Record<string, unknown> = {};
+      if (this.params)
+        for (const key in this.params)
+          params[key] = this.params[key].getValue(req);
+
+      const routeHandlerArgs = {
+        req,
+        res,
+        params: params as RouteParamValues<S>,
+      } satisfies RouteHandlerArgs<S>;
 
       try {
-        this.handler(baseArgs as RouteHandlerArgs<TParams>);
+        await this.exec(routeHandlerArgs);
       } catch (handlerErr) {
+        // if handlerErr is a zod validation error - how to check?
         console.error(handlerErr);
-        res.writeStatus(getStatusBuffer(HttpStatus.INTERNAL_SERVER_ERROR));
-        res.end('Internal Server Error in request handler');
+        rawRes.writeStatus(getStatusBuffer(HttpStatus.INTERNAL_SERVER_ERROR));
+        rawRes.end('Internal Server Error in request handler');
       }
     } catch (err) {
       console.error(err);
-      res.writeStatus(getStatusBuffer(HttpStatus.INTERNAL_SERVER_ERROR));
-      res.end('Internal Server Error');
+      rawRes.writeStatus(getStatusBuffer(HttpStatus.INTERNAL_SERVER_ERROR));
+      rawRes.end('Internal Server Error');
     }
   }
 }

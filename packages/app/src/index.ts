@@ -15,7 +15,7 @@ const host = '0.0.0.0';
     cert_file_name: resolve(__dirname, 'certs', 'server.crt'),
   });
 
-  await app.listen(port, host, (socket) => {
+  await app.listen(host, port, (socket) => {
     if (socket) {
       if (socket.threadId) {
         console.log(`Server listening on ${host}:${port} with threadId: ${socket.threadId}`);

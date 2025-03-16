@@ -1,2 +1,2 @@
-export * from './route-param.type';
+export * from './route-param.class';
 export * from './factories';

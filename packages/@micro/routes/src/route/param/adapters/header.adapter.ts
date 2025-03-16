@@ -1,53 +1,32 @@
 import type { Request } from '@micro/routes/http';
-import type { RouteParam } from '@micro/routes/route/param/route-param.type';
+import type { RouteParam } from '@micro/routes/route/param';
 import type {
   AdapterType,
   RouteParamAdapter,
-  RouteParamAdapterPredicate,
 } from './adapter.type';
-import { applyFilterPredicate, applyPickPredicate, defaultFilterPredicate, defaultPickPredicate } from './helpers';
-import { NotImplementedError } from '@micro/routes/http/errors';
 
 // ----------------------
 // Adapter for 'header' parameters
 // ----------------------
 export function createHeaderAdapter<T>(
   adapterType: AdapterType,
-  predicate?: RouteParamAdapterPredicate<T>,
 ): RouteParamAdapter<T> {
-  return function (this: RouteParam<T>, req: Request): T | T[] {
-    /*
-    const paramValue = req.headers.get(this.name);
-    if (!paramValue) return this.schema.parse(undefined);
+  switch (adapterType) {
+  case 'first':
+  default:
+    return function (this: RouteParam<T>, req: Request): T {
+      return this.schema.parse(req.headers.get(this.name));
+    };
 
-    if (Array.isArray(paramValue)) {
-      switch (adapterType) {
-      case 'last':
-        return this.schema.parse(paramValue[paramValue.length - 1]);
-      case 'first':
-        return this.schema.parse(paramValue[0]);
-      case 'pick': {
-        const effectivePredicate = (predicate || defaultPickPredicate) as RouteParamAdapterPredicate<T>;
-        return applyPickPredicate(paramValue, effectivePredicate, this.schema);
-      }
-      case 'all':
-        return paramValue.map((v) => this.schema.parse(v));
-      case 'filter': {
-        const effectivePredicate = (predicate || defaultFilterPredicate) as RouteParamAdapterPredicate<T>;
-        return applyFilterPredicate(paramValue, effectivePredicate, this.schema);
-      }
-      default:
-        return this.schema.parse(paramValue[paramValue.length - 1]);
-      }
-    } else {
-      if (adapterType === 'all') return [this.schema.parse(paramValue)];
-      if (adapterType === 'filter') {
-        const effectivePredicate = (predicate || defaultFilterPredicate) as RouteParamAdapterPredicate<T>;
-        return applyFilterPredicate([paramValue], effectivePredicate, this.schema);
-      }
-      return this.schema.parse(paramValue);
-    }*/
+  case 'last':
+    return function (this: RouteParam<T>, req: Request): T {
+      const values = req.headers.getAll(this.name);
+      return this.schema.parse(values[values.length - 1]);
+    };
 
-    throw new NotImplementedError('Header adapter is not implemented yet');
-  };
+  case 'all':
+    return function (this: RouteParam<T>, req: Request): T {
+      return this.schema.parse(req.headers.getAll(this.name));
+    };
+  }
 }
