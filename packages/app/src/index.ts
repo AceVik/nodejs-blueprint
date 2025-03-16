@@ -10,9 +10,9 @@ const host = '0.0.0.0';
 
 (async () => {
   const app = createRoutesApp({
-    dh_params_file_name: resolve(__dirname, 'certs', 'dhparam.pem'),
-    key_file_name: resolve(__dirname, 'certs', 'server.key'),
-    cert_file_name: resolve(__dirname, 'certs', 'server.crt'),
+    // dh_params_file_name: resolve(__dirname, 'certs', 'dhparam.pem'),
+    // key_file_name: resolve(__dirname, 'certs', 'server.key'),
+    // cert_file_name: resolve(__dirname, 'certs', 'server.crt'),
   });
 
   await app.listen(host, port, (socket) => {
