@@ -1,4 +1,5 @@
-import type { ZodSchema } from 'zod';
+import assert from 'node:assert';
+import { ZodArray, ZodSchema } from 'zod';
 import type { Request } from '../../http/index.js';
 import type { RouteParamType } from './route-param-types.type.js';
 import type { AdapterType, RouteParamAdapter } from './adapters/index.js';
@@ -17,6 +18,7 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
     public readonly readType: AP,
     private readonly readAndValidateValueHandler: RouteParamAdapter<T>,
   ) {
+    assert(this.readType === 'all' && this.schema instanceof ZodArray, 'Cannot use "all" adapter type with non-array schema');
     this.readAndValidateValueHandler.bind(this);
     this._elevationHandler = getElevatorForSchema(this.schema, this.readType) as ElevationHandler<T, AP> | undefined;
   }
