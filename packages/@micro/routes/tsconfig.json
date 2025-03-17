@@ -4,18 +4,43 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ESNext"],
-    "useUnknownInCatchVariables": false,
-    "noUncheckedIndexedAccess": true,
-    "removeComments": true,
-    "outDir": "lib",
-    "rootDir": "./src",
     "esModuleInterop": true,
-    "strict": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "rootDir": "./src",
+    "outDir": "lib",
     "declaration": true,
     "declarationMap": true,
+    "removeComments": true,
+
+    // Strictness
+    "strict": true,
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    "useUnknownInCatchVariables": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"],
-    "baseUrl": "."
+
+    // No unused code
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+
+    // No implicit code
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+
+    // Security
+    "noUncheckedSideEffectImports": true,
+    "noUncheckedIndexedAccess": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
   },
   "include": [
     "src/**/*",
@@ -23,6 +48,6 @@
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "lib"
   ]
 }

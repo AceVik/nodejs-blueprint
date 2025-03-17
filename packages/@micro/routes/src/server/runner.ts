@@ -25,13 +25,11 @@ async function getListenCallback(cb?: ListenCallback): Promise<UWSListenCallback
 
 type RunOptions<T> = T & {
   listenAtUnixSocket: boolean;
-  callback?: ListenCallback;
-} & Partial<({
-  host: RecognizedString;
-  port: number;
-} & {
-  unixPath: RecognizedString;
-})>;
+  callback?: ListenCallback | undefined;
+  host?: RecognizedString;
+  port?: number;
+  unixPath?: RecognizedString;
+};
 
 export async function runRoutes(options: RunOptions<CreateRoutesAppOptions>) {
   if (!isMainThread) {
@@ -44,7 +42,7 @@ export async function runRoutes(options: RunOptions<CreateRoutesAppOptions>) {
 
   const params = {
     ...workerOptions,
-    routes_path: routesPath,
+    routes_path: routesPath!, // routesPath is expected to be set here, if it is undefined, it should be passed and course an error.
   } satisfies RunOptions<WorkerOptions>;
 
   if (numWorkers <= 1) {

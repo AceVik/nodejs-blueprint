@@ -15,6 +15,16 @@ export function route<S extends RouteParams>(optionsOrHandler: RouteOptions<S> |
   if (typeof optionsOrHandler === 'function') {
     return new Route(empty, empty, emptyRequestMethod, optionsOrHandler);
   } else {
+    // Set name for each parameter
+    if (optionsOrHandler?.params)
+      for (const paramName in optionsOrHandler.params) {
+        // No check if param is defined, it should crash if not
+        if (!optionsOrHandler.params[paramName]!.name.length)
+          Object.defineProperty(optionsOrHandler.params[paramName], 'name', {
+            value: paramName,
+          });
+      }
+
     return new Route(empty, empty, optionsOrHandler.method || emptyRequestMethod, handler!, optionsOrHandler.params);
   }
 }

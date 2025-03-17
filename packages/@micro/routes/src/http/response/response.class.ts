@@ -1,5 +1,5 @@
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
-import { getStatusPhrase, type HttpStatusCode } from '../../http/index.js';
+import { getStatusPhrase, type HttpStatusCode } from '../status/index.js';
 
 export class Response {
   public get raw(): HttpResponse {
@@ -9,7 +9,11 @@ export class Response {
   // private readonly _headers = new Map<string, string[]>();
 
   private _contentType: string | undefined = undefined;
-  constructor(private readonly res: HttpResponse, private readonly req: HttpRequest) {
+  constructor(
+    private readonly res: HttpResponse,
+    // @ts-expect-error TS6138: Property req is declared but its value is never read.
+    private readonly req: HttpRequest,
+  ) {
   }
 
   public status(statusCode: HttpStatusCode) {

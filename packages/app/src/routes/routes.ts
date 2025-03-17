@@ -1,10 +1,9 @@
-import { route, fromQuery } from '@micro/routes';
+import { route, allFromQuery, fromQuery } from '@micro/routes';
 import { z } from 'zod';
 
 export const getStuff = route({
-  desc: 'Get stuff',
   params: {
-    test: fromQuery(z.coerce.number()),
+    test: allFromQuery(z.array(z.union([z.number(), z.string()]))),
   },
 }, async ({ req, res, params }) => {
   res.send(JSON.stringify({
@@ -16,3 +15,4 @@ export const getStuff = route({
     test: params.test,
   }));
 });
+
