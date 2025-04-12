@@ -1,7 +1,7 @@
-import { type ZodSchema, ZodArray, ZodBigInt, ZodBoolean, ZodNumber, ZodObject, ZodUnion } from 'zod';
+import { type ZodType, ZodArray, ZodBigInt, ZodBoolean, ZodNumber, ZodObject, ZodUnion } from 'zod';
 import type { ElevationHandler } from './route-param.class.js';
 import type { AdapterType } from './adapters/index.js';
-import { schemaHasPreprocessor, tryParse } from '../../utils/index.js';
+import { tryParse } from '../../utils/index.js';
 
 const arrayInnerElevator = (innerElevator: ElevationHandler<unknown, 'first' | 'last'>): ElevationHandler<unknown, 'all'> => {
   return (values) => {
@@ -55,12 +55,12 @@ const bigIntElevator: ElevationHandler<bigint | string | null | undefined, 'firs
   }
 };
 
-export function getElevatorForSchema<T>(schema: ZodSchema<T>, adapterType: AdapterType): ElevationHandler<T, 'first' | 'last' | 'all'> | undefined {
-  if (schemaHasPreprocessor<T>(schema))
-    return undefined;
-
+export function getElevatorForSchema<T>(schema: ZodType<T>, adapterType: AdapterType): ElevationHandler<T, 'first' | 'last' | 'all'> | undefined {
   if (adapterType === 'all'){
-    const innerElevator = getElevatorForSchema((schema as ZodArray<never, never>).element, 'first') as ElevationHandler<T, 'first' | 'last'> | undefined;
+    const innerElevator = getElevatorForSchema(
+    // @ts-expect-error TS2339: Property element does not exist on type ZodType<T, unknown>
+      schema.element,
+      'first') as ElevationHandler<T, 'first' | 'last'> | undefined;
     if (!innerElevator) return undefined;
 
     return arrayInnerElevator(innerElevator) as ElevationHandler<T, 'all'>;
@@ -85,7 +85,7 @@ export function getElevatorForSchema<T>(schema: ZodSchema<T>, adapterType: Adapt
     return arrayOrObjectElevator as ElevationHandler<T, 'first' | 'last'>;
 
   if (schema instanceof ZodUnion) {
-    const elevators = schema.options.map((option: ZodSchema) => getElevatorForSchema(option, adapterType)).filter(Boolean) as ElevationHandler<T, 'first' | 'last'>[];
+    const elevators = schema.options.map((option) => getElevatorForSchema(option as ZodType, adapterType)).filter(Boolean) as ElevationHandler<T, 'first' | 'last'>[];
     if (!elevators.length) return undefined;
     return unionElevator(elevators) as ElevationHandler<T, 'first' | 'last'>;
   }

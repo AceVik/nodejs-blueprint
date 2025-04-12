@@ -44,7 +44,7 @@ export class Route<S extends RouteParams> {
               raw: rawValue,
               elevated: elevatedValue,
             },
-            issues: e.issues || e.errors,
+            issues: e.issues,
           });
         } else {
           throw e;

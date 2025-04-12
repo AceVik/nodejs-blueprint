@@ -13,18 +13,18 @@
     "index.d.ts"
   ],
   "devDependencies": {
-    "@types/node": "^22.13.9",
-    "typescript": "^5.8.2"
+    "@types/node": "^22.14.1",
+    "typescript": "^5.8.3"
   },
   "peerDependencies": {
-    "zod": "^3.24.2",
-    "@anatine/zod-openapi": "^2.2.7",
-    "openapi3-ts": "^4.4.0"
+    "@anatine/zod-openapi": "^2.2.8",
+    "openapi3-ts": "^4.4.0",
+    "zod": "4.0.0-beta.20250412T085909"
   },
   "dependencies": {
-    "@anatine/zod-openapi": "^2.2.7",
+    "@anatine/zod-openapi": "^2.2.8",
     "openapi3-ts": "^4.4.0",
-    "zod": "^3.24.2",
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0"
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0",
+    "zod": "4.0.0-beta.20250412T085909"
   }
 }

@@ -1,4 +1,4 @@
-import { z, type ZodSchema } from 'zod';
+import { z, type ZodType } from 'zod';
 import type { RouteParamType } from '../route-param-types.type.js';
 import {
   type AdapterType,
@@ -22,7 +22,7 @@ export const adapterBuilders: Record<
 };
 
 // Intern: Funktion, die einen RouteParam mit einem bestimmten Adapter erstellt
-function createRouteParamWithHandler<S extends ZodSchema<any>, AP extends AdapterType>(
+function createRouteParamWithHandler<S extends ZodType, AP extends AdapterType>(
   sourceType: RouteParamType,
   adapterType: AP,
   names: string[],
@@ -43,21 +43,21 @@ function createRouteParamWithHandler<S extends ZodSchema<any>, AP extends Adapte
 // ---------------------------------------------------
 
 // fromParam: Default-Adapter ('first')
-export function fromParam<S extends ZodSchema<any>>(
+export function fromParam<S extends ZodType>(
   sourceType: RouteParamType,
   schema: S,
 ): RouteParam<z.infer<S>>;
-export function fromParam<S extends ZodSchema<any>>(
+export function fromParam<S extends ZodType>(
   sourceType: RouteParamType,
   name: string | string[],
   schema: S,
 ): RouteParam<z.infer<S>>;
-export function fromParam<S extends ZodSchema<any>>(
+export function fromParam<S extends ZodType>(
   sourceType: RouteParamType,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>>;
-export function fromParam<S extends ZodSchema<any>>(
+export function fromParam<S extends ZodType>(
   sourceType: RouteParamType,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
@@ -72,21 +72,21 @@ export function fromParam<S extends ZodSchema<any>>(
 }
 
 // lastFromParam: Adapter ('last')
-export function lastFromParam<S extends ZodSchema<any>>(
+export function lastFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   schema: S,
 ): RouteParam<z.infer<S>, 'last'>;
-export function lastFromParam<S extends ZodSchema<any>>(
+export function lastFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   name: string | string[],
   schema: S,
 ): RouteParam<z.infer<S>, 'last'>;
-export function lastFromParam<S extends ZodSchema<any>>(
+export function lastFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>, 'last'>;
-export function lastFromParam<S extends ZodSchema<any>>(
+export function lastFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
@@ -101,21 +101,21 @@ export function lastFromParam<S extends ZodSchema<any>>(
 }
 
 // allFromParam: Adapter ('all')
-export function allFromParam<S extends ZodSchema<any>>(
+export function allFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   schema: S,
 ): RouteParam<z.infer<S>, 'all'>;
-export function allFromParam<S extends ZodSchema<any>>(
+export function allFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   name: string | string[],
   schema: S,
 ): RouteParam<z.infer<S>, 'all'>;
-export function allFromParam<S extends ZodSchema<any>>(
+export function allFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>, 'all'>;
-export function allFromParam<S extends ZodSchema<any>>(
+export function allFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,

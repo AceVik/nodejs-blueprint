@@ -12,6 +12,7 @@ import { type Hostname, Route } from '../route/index.js';
 import { ErrorMiddleware, type ErrorMiddlewareHandlerArgs, type NextFunction, type NextParams } from '../middleware/index.js';
 import { httpErrorMiddleware, serverErrorMiddleware } from '../middleware/error/presets/index.js';
 import { Request, Response } from '../http/index.js';
+import { HTTP_ERROR_MIDDLEWARE, SERVER_ERROR_MIDDLEWARE } from '../middleware/error/symbols.js';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 type RawRouteHandler = (res: HttpResponse, req: HttpRequest) => void | Promise<void>;
@@ -46,9 +47,13 @@ export class RoutesApp {
 
   private _serverNames: Hostname[] = [];
   private _routes: Route<never>[] = [];
-  private _errorMiddlewares: ErrorMiddleware[] = [
-    httpErrorMiddleware,
-    serverErrorMiddleware,
+  private _errorMiddlewares: Record<string | symbol, ErrorMiddleware> = {
+    [HTTP_ERROR_MIDDLEWARE]: httpErrorMiddleware,
+    [SERVER_ERROR_MIDDLEWARE]: serverErrorMiddleware,
+  };
+  private _errorMiddlewaresOrder: (string | symbol)[] = [
+    HTTP_ERROR_MIDDLEWARE,
+    SERVER_ERROR_MIDDLEWARE,
   ];
 
   public get serverNames(): readonly Hostname[] {
@@ -59,7 +64,7 @@ export class RoutesApp {
     return this._routes;
   }
 
-  public get errorMiddlewares(): readonly ErrorMiddleware[] {
+  public get errorMiddlewares() {
     return this._errorMiddlewares;
   }
 
@@ -94,11 +99,11 @@ export class RoutesApp {
   }
 
   private async runErrorMiddlewares(error: unknown, args: Omit<ErrorMiddlewareHandlerArgs, 'next'>) {
-    const middlewares = this.errorMiddlewares;
+    const middlewareNames = this._errorMiddlewaresOrder;
     let index = 0;
     const next: NextFunction = async (params?: NextParams) => {
-      if (index < middlewares.length) {
-        const currentMiddleware = middlewares[index++];
+      if (index < middlewareNames.length) {
+        const currentMiddleware = this.errorMiddlewares[middlewareNames[index++]!];
         await currentMiddleware?.handleError(error, { ...args, prevParams: params, next });
       }
     };
@@ -162,7 +167,13 @@ export class RoutesApp {
       if (middlewareOrRoute instanceof Route) {
         this.addRoute(middlewareOrRoute);
       } else if (middlewareOrRoute instanceof ErrorMiddleware) {
-        this._errorMiddlewares.push(middlewareOrRoute);
+        const emw = middlewareOrRoute as ErrorMiddleware;
+        if (emw.name in this._errorMiddlewares) {
+          this._errorMiddlewaresOrder.splice(this._errorMiddlewaresOrder.indexOf(emw.name), 1);
+        }
+
+        this._errorMiddlewares[emw.name] = emw;
+        this._errorMiddlewaresOrder = [emw.name, ...this._errorMiddlewaresOrder];
       } // TODO: Normal Middleware
     }
 
