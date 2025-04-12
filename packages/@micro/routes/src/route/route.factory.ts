@@ -1,7 +1,7 @@
 import type { RequestMethod } from '../http/index.js';
 import type { RouteHandler } from './route-handler.type.js';
 import type { RouteParams } from './param/route-params.type.js';
-import type { RouteOptions } from './route-options.type.js';
+import type { RouteAvailability, RouteOptions } from './route-options.type.js';
 import type { RouteParamType } from './param/route-param-types.type.js';
 import { Route } from './route.class.js';
 import { camelToKebab } from '../utils/camel-to-kebab.util.js';
@@ -14,9 +14,11 @@ export function route<S extends RouteParams>(handler: RouteHandler<S>): Route<S>
 export function route<S extends RouteParams>(options: RouteOptions<S>, handler: RouteHandler<S>): Route<S>;
 export function route<S extends RouteParams>(optionsOrHandler: RouteOptions<S> | RouteHandler<S>, handler?: RouteHandler<S>): Route<S>;
 export function route<S extends RouteParams>(optionsOrHandler: RouteOptions<S> | RouteHandler<S>, handler?: RouteHandler<S>): Route<S> {
+  let hostnames: RouteAvailability = 'any';
   if (typeof optionsOrHandler === 'function') {
-    return new Route(empty, empty, emptyRequestMethod, optionsOrHandler);
+    return new Route(empty, empty, emptyRequestMethod, optionsOrHandler, hostnames);
   } else {
+    hostnames = optionsOrHandler.for || hostnames;
     // Set name for each parameter
     if (optionsOrHandler?.params)
       for (const paramName in optionsOrHandler.params) {
@@ -28,6 +30,6 @@ export function route<S extends RouteParams>(optionsOrHandler: RouteOptions<S> |
           });
       }
 
-    return new Route(empty, empty, optionsOrHandler.method || emptyRequestMethod, handler!, optionsOrHandler.params);
+    return new Route(empty, empty, optionsOrHandler.method || emptyRequestMethod, handler!, hostnames, optionsOrHandler.params);
   }
 }

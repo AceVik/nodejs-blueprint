@@ -4,7 +4,18 @@ import type { ErrorMiddleware } from '../middleware/index.js';
 
 export type RouteRequestMethod = RequestMethod | 'ANY';
 
+export type Hostname = string;
+export type RouteAvailability = Hostname | Hostname[] | 'all' | 'base' | 'any';
+
 export type RouteOptions<S extends RouteParams> = {
+  /**
+   * Available for domains.
+   * 'all': available for all given domains.
+   * 'base': available only for app but not for any domain.
+   * 'any': all and base combined. (default)
+   */
+  for?: RouteAvailability;
+
   /**
    * Request method
    * auto set bei router/importRoutes if not set

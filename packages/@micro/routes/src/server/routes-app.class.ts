@@ -6,24 +6,54 @@ import {
   type us_listen_socket,
   App,
   SSLApp,
-  ListenOptions,
-  TemplatedApp,
+  TemplatedApp, type AppOptions,
 } from 'uWebSockets.js';
-import { Route } from '../route/index.js';
+import { type Hostname, Route } from '../route/index.js';
 import { ErrorMiddleware, type ErrorMiddlewareHandlerArgs, type NextFunction, type NextParams } from '../middleware/index.js';
 import { httpErrorMiddleware, serverErrorMiddleware } from '../middleware/error/presets/index.js';
 import { Request, Response } from '../http/index.js';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
+type RawRouteHandler = (res: HttpResponse, req: HttpRequest) => void | Promise<void>;
+
+function registerRoute(app: TemplatedApp, route: Route<never>, handler: RawRouteHandler) {
+  switch (route.method) {
+  case 'GET':
+    return app.get(route.path, handler);
+  case 'POST':
+    return app.post(route.path, handler);
+  case 'PUT':
+    return app.put(route.path, handler);
+  case 'DELETE':
+    return app.del(route.path, handler);
+  case 'PATCH':
+    return app.patch(route.path, handler);
+  case 'OPTIONS':
+    return app.options(route.path, handler);
+  case 'HEAD':
+    return app.head(route.path, handler);
+  case 'TRACE':
+    return app.trace(route.path, handler);
+  case 'CONNECT':
+    return app.connect(route.path, handler);
+  case 'ANY':
+    return app.any(route.path, handler);
+  }
+}
 
 export class RoutesApp {
   private readonly rawApp: TemplatedApp;
 
+  private _serverNames: Hostname[] = [];
   private _routes: Route<never>[] = [];
   private _errorMiddlewares: ErrorMiddleware[] = [
     httpErrorMiddleware,
     serverErrorMiddleware,
   ];
+
+  public get serverNames(): readonly Hostname[] {
+    return this._serverNames;
+  }
 
   public get routes(): readonly Route<never>[] {
     return this._routes;
@@ -42,6 +72,25 @@ export class RoutesApp {
       this.rawApp.close();
       process.exit(0);
     });
+  }
+
+  public addServerName(hostname: Hostname, options?: AppOptions): RoutesApp {
+    if (!this.serverNames.includes(hostname)) {
+      this._serverNames.push(hostname);
+      this.rawApp.addServerName(hostname, options || {});
+    }
+
+    return this;
+  }
+
+  public removeServerName(hostname: Hostname): RoutesApp {
+    let idx;
+    if ((idx = this.serverNames.indexOf(hostname)) >= 0) {
+      this._serverNames.splice(idx, 1);
+      this.rawApp.removeServerName(hostname);
+    }
+
+    return this;
   }
 
   private async runErrorMiddlewares(error: unknown, args: Omit<ErrorMiddlewareHandlerArgs, 'next'>) {
@@ -87,44 +136,31 @@ export class RoutesApp {
     }).bind(this);
   }
 
+  private addRoute(route: Route<never>) {
+    this._routes.push(route);
+    const routeHandler = this.createRouteHandler(route);
+
+    if (route.hostnames === 'any' || route.hostnames === 'base') {
+      registerRoute(this.rawApp, route, routeHandler);
+      if (route.hostnames === 'base') return;
+    }
+
+    if (route.hostnames === 'any' || route.hostnames === 'all') {
+      for (const hostname of this.serverNames) {
+        registerRoute(this.rawApp.domain(hostname), route, routeHandler);
+      }
+      return;
+    }
+
+    for (const hostname of Array.isArray(route.hostnames) ? route.hostnames : [route.hostnames]) {
+      registerRoute(this.rawApp.domain(hostname), route, routeHandler);
+    }
+  }
+
   public use(...middlewaresOrRoutes: (ErrorMiddleware | Route<never>)[]): RoutesApp {
     for (const middlewareOrRoute of middlewaresOrRoutes) {
       if (middlewareOrRoute instanceof Route) {
-        const route = middlewareOrRoute as Route<never>;
-        this._routes.push(route);
-
-        switch (route.method) {
-        case 'GET':
-          this.rawApp.get(route.path, this.createRouteHandler(route));
-          break;
-        case 'POST':
-          this.rawApp.post(route.path, this.createRouteHandler(route));
-          break;
-        case 'PUT':
-          this.rawApp.put(route.path, this.createRouteHandler(route));
-          break;
-        case 'DELETE':
-          this.rawApp.del(route.path, this.createRouteHandler(route));
-          break;
-        case 'PATCH':
-          this.rawApp.patch(route.path, this.createRouteHandler(route));
-          break;
-        case 'OPTIONS':
-          this.rawApp.options(route.path, this.createRouteHandler(route));
-          break;
-        case 'HEAD':
-          this.rawApp.head(route.path, this.createRouteHandler(route));
-          break;
-        case 'TRACE':
-          this.rawApp.trace(route.path, this.createRouteHandler(route));
-          break;
-        case 'CONNECT':
-          this.rawApp.connect(route.path, this.createRouteHandler(route));
-          break;
-        case 'ANY':
-          this.rawApp.any(route.path, this.createRouteHandler(route));
-          break;
-        }
+        this.addRoute(middlewareOrRoute);
       } else if (middlewareOrRoute instanceof ErrorMiddleware) {
         this._errorMiddlewares.push(middlewareOrRoute);
       } // TODO: Normal Middleware
@@ -146,7 +182,7 @@ export class RoutesApp {
   }
 
   public listenExclusive(port: number, cb: UWSListenCallback) : RoutesApp {
-    this.rawApp.listen(port, ListenOptions.LIBUS_LISTEN_EXCLUSIVE_PORT, cb);
+    this.rawApp.listen(port, 1, cb);
     return this;
   }
 

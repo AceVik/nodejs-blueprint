@@ -6,7 +6,7 @@ import {
   BadRequestError,
 } from '../http/index.js';
 import { RoutesApp } from '../server/index.js';
-import type { RouteRequestMethod } from './route-options.type.js';
+import { type RouteAvailability, type RouteRequestMethod } from './route-options.type.js';
 
 export class Route<S extends RouteParams> {
   public exec: RouteHandler<S>;
@@ -17,6 +17,7 @@ export class Route<S extends RouteParams> {
     public readonly path: string,
     public readonly method: RouteRequestMethod ,
     handler: RouteHandler<S>,
+    public readonly hostnames: RouteAvailability,
     public readonly params?: S,
   ) {
     this.exec = handler;

@@ -7,7 +7,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const port = parseInt(process.env.PORT || '3443', 10);
-const host = '0.0.0.0';
 
 (async () => {
   const app = createRoutesApp({
@@ -22,11 +21,11 @@ const host = '0.0.0.0';
     app.use(...routes);
   }
 
-  await app.listen(host, port, (socket) => {
-    if (socket) {
-      console.log(`Server listening on ${host}:${port}.`);
+  app.listenExclusive(port, (s) => {
+    if (s) {
+      console.log(`Server listening on ${port}.`);
     } else {
-      console.error('Failed to listen', socket);
+      console.error('Failed to listen', s);
     }
   });
 })();
