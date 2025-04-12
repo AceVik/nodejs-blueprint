@@ -1,21 +1,18 @@
 import type { CreateRoutesAppOptions } from './create-routes-app-params.type.js';
-import { toRecognizedString } from '../utils/index.js';
 import {
-  App,
-  HttpRequest,
-  HttpResponse,
+  type HttpRequest,
+  type HttpResponse,
   type RecognizedString,
-  SSLApp,
-  TemplatedApp,
   type us_listen_socket,
+  App,
+  SSLApp,
+  ListenOptions,
+  TemplatedApp,
 } from 'uWebSockets.js';
 import { Route } from '../route/index.js';
-import { ErrorMiddleware, ErrorMiddlewareHandlerArgs, NextFunction, NextParams } from '../middleware/index.js';
+import { ErrorMiddleware, type ErrorMiddlewareHandlerArgs, type NextFunction, type NextParams } from '../middleware/index.js';
 import { httpErrorMiddleware, serverErrorMiddleware } from '../middleware/error/presets/index.js';
 import { Request, Response } from '../http/index.js';
-
-const defaultHost = toRecognizedString('127.0.0.1');
-const defaultCallback = () => undefined;
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 
@@ -136,28 +133,25 @@ export class RoutesApp {
     return this;
   }
 
-  public async listen(port: number, cb?: UWSListenCallback): Promise<void>;
-  public async listen(host: RecognizedString, port: number, cb?: UWSListenCallback): Promise<void>;
-  public async listen(unixPath: RecognizedString, cb?: UWSListenCallback): Promise<void>;
-  public async listen(
-    hostOrPortOrUnixPath: number | RecognizedString,
-    portOrCb?: number | UWSListenCallback,
-    cb?: UWSListenCallback,
-  ): Promise<void> {
-    if (typeof hostOrPortOrUnixPath === 'number') {
-      const port = hostOrPortOrUnixPath;
-      const callback = typeof portOrCb === 'function' ? portOrCb : cb || defaultCallback;
-      this.rawApp.listen(defaultHost, port, callback);
+  listen(port: number, cb: UWSListenCallback) : RoutesApp;
+  listen(host: RecognizedString, port: number, cb: UWSListenCallback) : RoutesApp;
+  listen(hostOrPort: RecognizedString | number, portOrCb: number | UWSListenCallback, cb?: UWSListenCallback) : RoutesApp {
+    if (typeof hostOrPort === 'number') {
+      this.rawApp.listen(hostOrPort, portOrCb as UWSListenCallback);
     } else {
-      if (typeof portOrCb === 'number') {
-        const host = hostOrPortOrUnixPath as RecognizedString;
-        const port = portOrCb;
-        this.rawApp.listen(host, port, cb || defaultCallback);
-      } else {
-        const unixPath = hostOrPortOrUnixPath as RecognizedString;
-        const callback = typeof portOrCb === 'function' ? portOrCb : cb || defaultCallback;
-        this.rawApp.listen_unix(callback, unixPath);
-      }
+      this.rawApp.listen(hostOrPort, portOrCb as number, cb!);
     }
+
+    return this;
+  }
+
+  public listenExclusive(port: number, cb: UWSListenCallback) : RoutesApp {
+    this.rawApp.listen(port, ListenOptions.LIBUS_LISTEN_EXCLUSIVE_PORT, cb);
+    return this;
+  }
+
+  public listenUnix(cb: UWSListenCallback, path: RecognizedString) : RoutesApp {
+    this.rawApp.listen_unix(cb, path);
+    return this;
   }
 }
