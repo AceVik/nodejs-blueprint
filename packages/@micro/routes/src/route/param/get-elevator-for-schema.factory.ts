@@ -27,22 +27,32 @@ const unionElevator = (elevators: ElevationHandler<unknown, 'first' | 'last'>[])
 
 const arrayOrObjectElevator: ElevationHandler<unknown, 'first' | 'last'> = (value) => value ? tryParse(value) : null;
 
-const numberElevator: ElevationHandler<number, 'first' | 'last'> = (value) => {
-  return Number(value || undefined);
+const numberElevator: ElevationHandler<number | string | null | undefined, 'first' | 'last'> = (value) => {
+  const v = Number(value || undefined);
+  if (Number.isNaN(v)) return value;
+  return v;
 };
 
-const booleanElevator: ElevationHandler<boolean, 'first' | 'last'> = (value) => {
-  return (value === 'true' || value === '1') as boolean;
+const booleanElevator: ElevationHandler<boolean | string | null | undefined, 'first' | 'last'> = (value) => {
+  if (value === 'false' || value === '0') return false;
+  if (value === 'true' || value === '1' || value === '') return true;
+  return value;
 };
 
-const dateElevator: ElevationHandler<Date | null | undefined, 'first' | 'last'> = (value) => {
+const dateElevator: ElevationHandler<Date | string | null | undefined, 'first' | 'last'> = (value) => {
   if (!value) return value as null | undefined;
-  return new Date(value);
+  const v = new Date(value);
+  if (Number.isNaN(v.getTime())) return value;
+  return v;
 };
 
-const bigIntElevator: ElevationHandler<bigint | null | undefined, 'first' | 'last'> = (value) => {
+const bigIntElevator: ElevationHandler<bigint | string | null | undefined, 'first' | 'last'> = (value) => {
   if (!value) return value as null | undefined;
-  return BigInt(value);
+  try {
+    return BigInt(value);
+  } catch {
+    return value;
+  }
 };
 
 export function getElevatorForSchema<T>(schema: ZodSchema<T>, adapterType: AdapterType): ElevationHandler<T, 'first' | 'last' | 'all'> | undefined {

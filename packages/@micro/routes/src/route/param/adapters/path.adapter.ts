@@ -13,13 +13,37 @@ export function createPathAdapter<T>(
 ): RouteParamAdapter<T> {
   switch (adapterType) {
   case 'all':
-    return function (this: RouteParam<T>, req: Request): T {
-      return this.schema.parse([req.path.get(this.name)]);
-    };
+    return (function (this: RouteParam<T>, req: Request, kind, elevate): T {
+      let value: string | null;
+      for (let name of this.names) {
+        value = req.path.get(name);
+        if (value) break;
+      }
+
+      const values = [value!];
+
+      if (kind === 'raw') return values! as T;
+
+      const elevatedValue = elevate ? elevate(values!) : values!;
+      if (kind === 'elevated') return elevatedValue! as T;
+
+      return this.schema.parse(elevatedValue);
+    }) as RouteParamAdapter<T, 'all'>;
 
   default:
-    return function (this: RouteParam<T>, req: Request): T {
-      return this.schema.parse(req.path.get(this.name));
-    };
+    return (function (this: RouteParam<T>, req: Request, kind, elevate): T {
+      let value: string | null;
+      for (let name of this.names) {
+        value = req.path.get(name);
+        if (value) break;
+      }
+
+      if (kind === 'raw') return value! as T;
+
+      const elevatedValue = elevate ? elevate(value!) : value!;
+      if (kind === 'elevated') return elevatedValue! as T;
+
+      return this.schema.parse(elevatedValue);
+    }) as RouteParamAdapter<T, 'first'>;
   }
 }

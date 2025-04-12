@@ -1,8 +1,9 @@
 import { HttpStatus } from '../../http/index.js';
 import { HttpError } from './http.error.js';
+import type { HttpErrorErrors } from './http-error-errors.type.js';
 
 export class ServiceUnavailableError extends HttpError {
-  constructor(message?: string) {
-    super(HttpStatus.SERVICE_UNAVAILABLE, message);
+  constructor(message?: string, errors?: HttpErrorErrors) {
+    super(HttpStatus.SERVICE_UNAVAILABLE, message, errors);
   }
 }

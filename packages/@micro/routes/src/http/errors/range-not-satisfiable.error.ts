@@ -1,8 +1,9 @@
 import { HttpStatus } from '../../http/index.js';
 import { HttpError } from './http.error.js';
+import type { HttpErrorErrors } from './http-error-errors.type.js';
 
 export class RangeNotSatisfiableError extends HttpError {
-  constructor(message?: string) {
-    super(HttpStatus.RANGE_NOT_SATISFIABLE, message);
+  constructor(message?: string, errors?: HttpErrorErrors) {
+    super(HttpStatus.RANGE_NOT_SATISFIABLE, message, errors);
   }
 }

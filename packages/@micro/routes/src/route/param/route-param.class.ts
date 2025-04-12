@@ -13,12 +13,14 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
 
   constructor(
     public readonly type: RouteParamType,
-    public readonly name: string,
+    public readonly names: string[],
     public readonly schema: ZodSchema<T>,
     public readonly readType: AP,
     private readonly readAndValidateValueHandler: RouteParamAdapter<T>,
   ) {
-    assert(this.readType === 'all' && this.schema instanceof ZodArray, 'Cannot use "all" adapter type with non-array schema');
+    if (this.readType === 'all') {
+      assert(this.schema instanceof ZodArray, 'Cannot use "all" adapter type with non-array schema');
+    }
     this.readAndValidateValueHandler.bind(this);
     this._elevationHandler = getElevatorForSchema(this.schema, this.readType) as ElevationHandler<T, AP> | undefined;
   }
@@ -29,16 +31,24 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
   }
 
   public getValue(req: Request): T {
-    return this.readAndValidateValueHandler(req, this._elevationHandler);
+    return this.readAndValidateValueHandler(req, 'validated', this._elevationHandler);
   };
+
+  public getElevatedValue(req: Request): T {
+    return this.readAndValidateValueHandler(req, 'elevated', this._elevationHandler);
+  };
+
+  public getRawValue(req: Request): AP extends 'all' ? string | null | undefined : (string | null | undefined)[] {
+    return this.readAndValidateValueHandler(req, 'raw', this._elevationHandler) as AP extends 'all' ? string | null | undefined : (string | null | undefined)[];
+  }
 }
 
 export function createRouteParam<T, AP extends AdapterType = 'first'>(
   type: RouteParamType,
-  name: string,
+  names: string[],
   schema: ZodSchema<T>,
   readType: AP,
   handler: RouteParamAdapter<T>,
 ): RouteParam<T, AP> {
-  return new RouteParam<T, AP>(type, name, schema, readType, handler);
+  return new RouteParam<T, AP>(type, names, schema, readType, handler);
 }

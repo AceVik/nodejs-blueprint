@@ -4,4 +4,6 @@ import { ElevationHandler } from '../route-param.class.js';
 export const adapterTypes = ['last', 'first', 'all'] as const;
 export type AdapterType = typeof adapterTypes[number];
 
-export type RouteParamAdapter<T, AP extends AdapterType = any> = (req: Request, elevationHandler?: ElevationHandler<T, AP>) => T;
+type ValueKind = 'raw' | 'elevated' | 'validated';
+
+export type RouteParamAdapter<T, AP extends AdapterType = any> = (req: Request, kind: ValueKind, elevationHandler?: ElevationHandler<T, AP>) => T;

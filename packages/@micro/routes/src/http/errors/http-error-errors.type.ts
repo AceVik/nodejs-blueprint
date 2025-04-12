@@ -1,0 +1,1 @@
+export type HttpErrorErrors = (Record<string, unknown> | string)[] | undefined;

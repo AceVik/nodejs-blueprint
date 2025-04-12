@@ -25,12 +25,12 @@ export const adapterBuilders: Record<
 function createRouteParamWithHandler<S extends ZodSchema<any>, AP extends AdapterType>(
   sourceType: RouteParamType,
   adapterType: AP,
-  name: string,
+  names: string[],
   schema: S,
 ): RouteParam<z.infer<S>, AP> {
   return createRouteParam<z.infer<S>, AP>(
     sourceType,
-    name,
+    names,
     schema,
     adapterType,
     adapterBuilders[sourceType]<z.infer<S>>(adapterType),
@@ -49,23 +49,25 @@ export function fromParam<S extends ZodSchema<any>>(
 ): RouteParam<z.infer<S>>;
 export function fromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  name: string,
+  name: string | string[],
   schema: S,
 ): RouteParam<z.infer<S>>;
 export function fromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  nameOrSchema: string | S,
+  nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>>;
 export function fromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  nameOrSchema: string | S,
+  nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>> {
   if (typeof nameOrSchema === 'string') {
+    return createRouteParamWithHandler(sourceType, 'first', [nameOrSchema], maybeSchema!);
+  } else if (Array.isArray(nameOrSchema)) {
     return createRouteParamWithHandler(sourceType, 'first', nameOrSchema, maybeSchema!);
   } else {
-    return createRouteParamWithHandler(sourceType, 'first', '', nameOrSchema);
+    return createRouteParamWithHandler(sourceType, 'first', [], nameOrSchema);
   }
 }
 
@@ -76,23 +78,25 @@ export function lastFromParam<S extends ZodSchema<any>>(
 ): RouteParam<z.infer<S>, 'last'>;
 export function lastFromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  name: string,
+  name: string | string[],
   schema: S,
 ): RouteParam<z.infer<S>, 'last'>;
 export function lastFromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  nameOrSchema: string | S,
+  nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>, 'last'>;
 export function lastFromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  nameOrSchema: string | S,
+  nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>, 'last'> {
   if (typeof nameOrSchema === 'string') {
+    return createRouteParamWithHandler(sourceType, 'last', [nameOrSchema], maybeSchema!);
+  } else if(Array.isArray(nameOrSchema)) {
     return createRouteParamWithHandler(sourceType, 'last', nameOrSchema, maybeSchema!);
   } else {
-    return createRouteParamWithHandler(sourceType, 'last', '', nameOrSchema);
+    return createRouteParamWithHandler(sourceType, 'last', [], nameOrSchema);
   }
 }
 
@@ -103,22 +107,24 @@ export function allFromParam<S extends ZodSchema<any>>(
 ): RouteParam<z.infer<S>, 'all'>;
 export function allFromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  name: string,
+  name: string | string[],
   schema: S,
 ): RouteParam<z.infer<S>, 'all'>;
 export function allFromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  nameOrSchema: string | S,
+  nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>, 'all'>;
 export function allFromParam<S extends ZodSchema<any>>(
   sourceType: RouteParamType,
-  nameOrSchema: string | S,
+  nameOrSchema: string | string[] | S,
   maybeSchema?: S,
 ): RouteParam<z.infer<S>, 'all'> {
   if (typeof nameOrSchema === 'string') {
+    return createRouteParamWithHandler(sourceType, 'all', [nameOrSchema], maybeSchema!);
+  } else if (Array.isArray(nameOrSchema)) {
     return createRouteParamWithHandler(sourceType, 'all', nameOrSchema, maybeSchema!);
   } else {
-    return createRouteParamWithHandler(sourceType, 'all', '', nameOrSchema);
+    return createRouteParamWithHandler(sourceType, 'all', [], nameOrSchema);
   }
 }
