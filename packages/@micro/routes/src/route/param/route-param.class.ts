@@ -1,5 +1,5 @@
 import assert from 'node:assert';
-import { ZodArray, ZodSchema } from 'zod';
+import { ZodArray, type ZodType } from 'zod';
 import type { Request } from '../../http/index.js';
 import type { RouteParamType } from './route-param-types.type.js';
 import type { AdapterType, RouteParamAdapter } from './adapters/index.js';
@@ -14,7 +14,7 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
   constructor(
     public readonly type: RouteParamType,
     public readonly names: string[],
-    public readonly schema: ZodSchema<T>,
+    public readonly schema: ZodType<T>,
     public readonly readType: AP,
     private readonly readAndValidateValueHandler: RouteParamAdapter<T>,
   ) {
@@ -46,7 +46,7 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
 export function createRouteParam<T, AP extends AdapterType = 'first'>(
   type: RouteParamType,
   names: string[],
-  schema: ZodSchema<T>,
+  schema: ZodType<T>,
   readType: AP,
   handler: RouteParamAdapter<T>,
 ): RouteParam<T, AP> {

@@ -1,6 +1,6 @@
-import { type ZodType, ZodArray, ZodBigInt, ZodBoolean, ZodNumber, ZodObject, ZodUnion } from 'zod';
-import type { ElevationHandler } from './route-param.class.js';
+import { type ZodType, ZodArray, ZodBigInt, ZodBoolean, ZodNumber, ZodObject, ZodUnion, ZodDate } from 'zod';
 import type { AdapterType } from './adapters/index.js';
+import type { ElevationHandler } from './route-param.class.js';
 import { tryParse } from '../../utils/index.js';
 
 const arrayInnerElevator = (innerElevator: ElevationHandler<unknown, 'first' | 'last'>): ElevationHandler<unknown, 'all'> => {
@@ -56,10 +56,9 @@ const bigIntElevator: ElevationHandler<bigint | string | null | undefined, 'firs
 };
 
 export function getElevatorForSchema<T>(schema: ZodType<T>, adapterType: AdapterType): ElevationHandler<T, 'first' | 'last' | 'all'> | undefined {
-  if (adapterType === 'all'){
+  if (adapterType === 'all' && schema instanceof ZodArray) {
     const innerElevator = getElevatorForSchema(
-    // @ts-expect-error TS2339: Property element does not exist on type ZodType<T, unknown>
-      schema.element,
+      schema.element as ZodType,
       'first') as ElevationHandler<T, 'first' | 'last'> | undefined;
     if (!innerElevator) return undefined;
 
@@ -72,7 +71,7 @@ export function getElevatorForSchema<T>(schema: ZodType<T>, adapterType: Adapter
   if (schema instanceof ZodBoolean)
     return booleanElevator as ElevationHandler<T, 'first' | 'last'>;
 
-  if (schema instanceof Date)
+  if (schema instanceof ZodDate)
     return dateElevator as ElevationHandler<T, 'first' | 'last'>;
 
   if (schema instanceof ZodBigInt)
