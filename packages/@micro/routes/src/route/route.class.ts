@@ -26,7 +26,7 @@ export class Route<S extends RouteParams> {
   }
 
   private extractParams(req: Request) {
-    const errors: any[] = [];
+    const errors: unknown[] = [];
     const params: Record<string, unknown> = {};
     for (const key of this.paramKeys) {
       try {

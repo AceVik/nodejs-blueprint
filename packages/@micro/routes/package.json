@@ -17,11 +17,11 @@
     "typescript": "^5.8.3"
   },
   "peerDependencies": {
-    "zod": "^4.0.0-beta.20250424T163858"
+    "zod": "^4.1.5"
   },
   "dependencies": {
-    "@zod/core": "^0.9.0",
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.51.0",
-    "zod": "^4.0.0-beta.20250424T163858"
+    "@zod/core": "^0.11.6",
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.52.0",
+    "zod": "^4.1.5"
   }
 }
