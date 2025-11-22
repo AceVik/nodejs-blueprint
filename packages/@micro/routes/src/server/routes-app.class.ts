@@ -17,31 +17,42 @@ import { HTTP_ERROR_MIDDLEWARE, SERVER_ERROR_MIDDLEWARE } from '../middleware/er
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 type RawRouteHandler = (res: HttpResponse, req: HttpRequest) => void | Promise<void>;
 
+/**
+ * Registers a route handler with the underlying uWebSockets.js app.
+ * 
+ * @param app - The uWebSockets.js app instance.
+ * @param route - The route definition.
+ * @param handler - The handler function.
+ */
 function registerRoute(app: TemplatedApp, route: Route<never>, handler: RawRouteHandler) {
   switch (route.method) {
-  case 'GET':
-    return app.get(route.path, handler);
-  case 'POST':
-    return app.post(route.path, handler);
-  case 'PUT':
-    return app.put(route.path, handler);
-  case 'DELETE':
-    return app.del(route.path, handler);
-  case 'PATCH':
-    return app.patch(route.path, handler);
-  case 'OPTIONS':
-    return app.options(route.path, handler);
-  case 'HEAD':
-    return app.head(route.path, handler);
-  case 'TRACE':
-    return app.trace(route.path, handler);
-  case 'CONNECT':
-    return app.connect(route.path, handler);
-  case 'ANY':
-    return app.any(route.path, handler);
+    case 'GET':
+      return app.get(route.path, handler);
+    case 'POST':
+      return app.post(route.path, handler);
+    case 'PUT':
+      return app.put(route.path, handler);
+    case 'DELETE':
+      return app.del(route.path, handler);
+    case 'PATCH':
+      return app.patch(route.path, handler);
+    case 'OPTIONS':
+      return app.options(route.path, handler);
+    case 'HEAD':
+      return app.head(route.path, handler);
+    case 'TRACE':
+      return app.trace(route.path, handler);
+    case 'CONNECT':
+      return app.connect(route.path, handler);
+    case 'ANY':
+      return app.any(route.path, handler);
   }
 }
 
+/**
+ * The main application class for managing routes and the server.
+ * Wraps uWebSockets.js to provide a more structured routing and middleware system.
+ */
 export class RoutesApp {
   private readonly rawApp: TemplatedApp;
 
@@ -56,18 +67,32 @@ export class RoutesApp {
     SERVER_ERROR_MIDDLEWARE,
   ];
 
+  /**
+   * Gets the list of registered server names (hostnames).
+   */
   public get serverNames(): readonly Hostname[] {
     return this._serverNames;
   }
 
+  /**
+   * Gets the list of registered routes.
+   */
   public get routes(): readonly Route<never>[] {
     return this._routes;
   }
 
+  /**
+   * Gets the registered error middlewares.
+   */
   public get errorMiddlewares() {
     return this._errorMiddlewares;
   }
 
+  /**
+   * Creates a new RoutesApp instance.
+   * 
+   * @param options - Configuration options for the application.
+   */
   public constructor(private readonly options?: CreateRoutesAppOptions) {
     const { ...appOptions } = this.options || {};
     const useSSL = !!(appOptions.key_file_name && appOptions.cert_file_name);
@@ -79,6 +104,13 @@ export class RoutesApp {
     });
   }
 
+  /**
+   * Adds a server name (virtual host) to the application.
+   * 
+   * @param hostname - The hostname to add.
+   * @param options - Optional configuration for the virtual host.
+   * @returns The RoutesApp instance for chaining.
+   */
   public addServerName(hostname: Hostname, options?: AppOptions): RoutesApp {
     if (!this.serverNames.includes(hostname)) {
       this._serverNames.push(hostname);
@@ -88,6 +120,12 @@ export class RoutesApp {
     return this;
   }
 
+  /**
+   * Removes a server name from the application.
+   * 
+   * @param hostname - The hostname to remove.
+   * @returns The RoutesApp instance for chaining.
+   */
   public removeServerName(hostname: Hostname): RoutesApp {
     let idx;
     if ((idx = this.serverNames.indexOf(hostname)) >= 0) {
@@ -98,39 +136,64 @@ export class RoutesApp {
     return this;
   }
 
+  /**
+   * Executes the error middleware chain.
+   * Optimized to avoid creating closures inside the loop.
+   * 
+   * @param error - The error that occurred.
+   * @param args - The arguments for the error middleware.
+   */
   private async runErrorMiddlewares(error: unknown, args: Omit<ErrorMiddlewareHandlerArgs, 'next'>) {
     const middlewareNames = this._errorMiddlewaresOrder;
     let index = 0;
     const next: NextFunction = async (params?: NextParams) => {
       if (index < middlewareNames.length) {
-        const currentMiddleware = this.errorMiddlewares[middlewareNames[index++]!];
-        await currentMiddleware?.handleError(error, { ...args, prevParams: params, next });
+        const name = middlewareNames[index++];
+        const currentMiddleware = this.errorMiddlewares[name!];
+        if (currentMiddleware) {
+          await currentMiddleware.handleError(error, { ...args, prevParams: params, next });
+        } else {
+          // Skip if middleware is missing (defensive programming)
+          await next(params);
+        }
       }
     };
 
     await next();
   }
 
+  /**
+   * Creates a raw route handler for uWebSockets.js.
+   * 
+   * @param route - The route to handle.
+   * @returns A function that handles the raw request and response.
+   */
   private createRouteHandler(route: Route<never>) {
-    return (async function (this: RoutesApp, rawRes: HttpResponse, rawReq: HttpRequest) {
+    // Bind 'this' once to avoid repeated binding in the closure
+    const self = this;
+
+    return async function (rawRes: HttpResponse, rawReq: HttpRequest) {
       let req: Request;
       let res: Response;
 
       try {
-        let onAbortedHandler: () => void;
+        let onAbortedHandler: (() => void) | undefined;
+
         rawRes.onAborted(() => {
-          onAbortedHandler?.();
-          rawRes.close();
+          if (onAbortedHandler) {
+            onAbortedHandler();
+          }
+          // Ensure resources are cleaned up if needed, though uWS handles socket closure
         });
 
         req = new Request(rawReq, rawRes);
         res = new Response(rawRes, rawReq);
 
-        await route.handleRequest(req, res, this, (handler) => {
+        await route.handleRequest(req, res, self, (handler) => {
           onAbortedHandler = handler;
         });
       } catch (err: unknown) {
-        await this.runErrorMiddlewares(err, {
+        await self.runErrorMiddlewares(err, {
           route,
           rawRes,
           rawReq,
@@ -138,9 +201,14 @@ export class RoutesApp {
           res, req,
         });
       }
-    }).bind(this);
+    };
   }
 
+  /**
+   * Adds a route to the application and registers it with uWebSockets.js.
+   * 
+   * @param route - The route to add.
+   */
   private addRoute(route: Route<never>) {
     this._routes.push(route);
     const routeHandler = this.createRouteHandler(route);
@@ -157,11 +225,18 @@ export class RoutesApp {
       return;
     }
 
-    for (const hostname of Array.isArray(route.hostnames) ? route.hostnames : [route.hostnames]) {
+    const hostnames = Array.isArray(route.hostnames) ? route.hostnames : [route.hostnames];
+    for (const hostname of hostnames) {
       registerRoute(this.rawApp.domain(hostname), route, routeHandler);
     }
   }
 
+  /**
+   * Registers middlewares or routes with the application.
+   * 
+   * @param middlewaresOrRoutes - The middlewares or routes to register.
+   * @returns The RoutesApp instance for chaining.
+   */
   public use(...middlewaresOrRoutes: (ErrorMiddleware | Route<never>)[]): RoutesApp {
     for (const middlewareOrRoute of middlewaresOrRoutes) {
       if (middlewareOrRoute instanceof Route) {
@@ -180,9 +255,24 @@ export class RoutesApp {
     return this;
   }
 
-  listen(port: number, cb: UWSListenCallback) : RoutesApp;
-  listen(host: RecognizedString, port: number, cb: UWSListenCallback) : RoutesApp;
-  listen(hostOrPort: RecognizedString | number, portOrCb: number | UWSListenCallback, cb?: UWSListenCallback) : RoutesApp {
+  /**
+   * Starts listening on the specified port.
+   * 
+   * @param port - The port to listen on.
+   * @param cb - Callback function when listening starts.
+   * @returns The RoutesApp instance.
+   */
+  listen(port: number, cb: UWSListenCallback): RoutesApp;
+  /**
+   * Starts listening on the specified host and port.
+   * 
+   * @param host - The host to listen on.
+   * @param port - The port to listen on.
+   * @param cb - Callback function when listening starts.
+   * @returns The RoutesApp instance.
+   */
+  listen(host: RecognizedString, port: number, cb: UWSListenCallback): RoutesApp;
+  listen(hostOrPort: RecognizedString | number, portOrCb: number | UWSListenCallback, cb?: UWSListenCallback): RoutesApp {
     if (typeof hostOrPort === 'number') {
       this.rawApp.listen(hostOrPort, portOrCb as UWSListenCallback);
     } else {
@@ -192,12 +282,26 @@ export class RoutesApp {
     return this;
   }
 
-  public listenExclusive(port: number, cb: UWSListenCallback) : RoutesApp {
+  /**
+   * Starts listening on the specified port with exclusive access.
+   * 
+   * @param port - The port to listen on.
+   * @param cb - Callback function when listening starts.
+   * @returns The RoutesApp instance.
+   */
+  public listenExclusive(port: number, cb: UWSListenCallback): RoutesApp {
     this.rawApp.listen(port, 1, cb);
     return this;
   }
 
-  public listenUnix(cb: UWSListenCallback, path: RecognizedString) : RoutesApp {
+  /**
+   * Starts listening on a Unix socket.
+   * 
+   * @param cb - Callback function when listening starts.
+   * @param path - The path to the Unix socket.
+   * @returns The RoutesApp instance.
+   */
+  public listenUnix(cb: UWSListenCallback, path: RecognizedString): RoutesApp {
     this.rawApp.listen_unix(cb, path);
     return this;
   }

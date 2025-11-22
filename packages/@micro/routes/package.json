@@ -4,6 +4,10 @@
   "version": "1.0.0",
   "description": "A micro framework to build restfull routes.",
   "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./router": "./lib/router/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "pnpm build"

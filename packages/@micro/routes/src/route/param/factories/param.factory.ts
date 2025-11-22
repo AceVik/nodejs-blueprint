@@ -31,7 +31,7 @@ function createRouteParamWithHandler<S extends ZodType, AP extends AdapterType>(
   return createRouteParam<z.infer<S>, AP>(
     sourceType,
     names,
-    schema,
+    schema as unknown as ZodType<z.infer<S>>,
     adapterType,
     adapterBuilders[sourceType]<z.infer<S>>(adapterType),
   );
@@ -93,7 +93,7 @@ export function lastFromParam<S extends ZodType>(
 ): RouteParam<z.infer<S>, 'last'> {
   if (typeof nameOrSchema === 'string') {
     return createRouteParamWithHandler(sourceType, 'last', [nameOrSchema], maybeSchema!);
-  } else if(Array.isArray(nameOrSchema)) {
+  } else if (Array.isArray(nameOrSchema)) {
     return createRouteParamWithHandler(sourceType, 'last', nameOrSchema, maybeSchema!);
   } else {
     return createRouteParamWithHandler(sourceType, 'last', [], nameOrSchema);

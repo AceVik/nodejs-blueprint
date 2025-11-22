@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { createRoutesApp } from '@micro/routes';
-import { findRoutesFolder, importRoutes } from '@micro/routes/lib/router/index.js';
+import { findRoutesFolder, importRoutes } from '@micro/routes/router';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

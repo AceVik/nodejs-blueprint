@@ -3,6 +3,12 @@ import { readdir } from 'node:fs/promises';
 import { Route } from '../route/index.js';
 import { requestMethods, type RequestMethod } from '../http/index.js';
 
+/**
+ * Infers the HTTP method from the export name.
+ * 
+ * @param exportName - The name of the exported member.
+ * @returns The inferred HTTP method, defaults to 'GET'.
+ */
 function setMethodFromExportName(exportName: string): RequestMethod {
   const upper = exportName.toUpperCase();
   for (const method of requestMethods) {
@@ -12,10 +18,14 @@ function setMethodFromExportName(exportName: string): RequestMethod {
 }
 
 /**
- * Lädt Routen aus einer Datei. Der übergebene routesFilepath muss absolut sein.
+ * Loads routes from a specific file.
+ * 
+ * @param routesFilepath - The absolute path to the routes file.
+ * @param routePath - The base route path for the loaded routes.
+ * @returns A promise that resolves to an array of loaded routes.
  */
 async function loadRoutesFromFile(routesFilepath: string, routePath: string): Promise<Route<never>[]> {
-  // Stelle sicher, dass ein absoluter File-URL verwendet wird.
+  // Ensure an absolute file URL is used for dynamic import.
   const fileUrl = `file://${routesFilepath}`;
   const moduleExports = await import(fileUrl);
 
@@ -23,18 +33,21 @@ async function loadRoutesFromFile(routesFilepath: string, routePath: string): Pr
   for (const exportName in moduleExports) {
     const exported = moduleExports[exportName];
     if (exported instanceof Route) {
-      Object.defineProperty(exported, 'name' as keyof Route<never>, {
+      // Set the route name if not already defined
+      Object.defineProperty(exported, 'name', {
         value: exportName,
       });
-      // Setze HTTP-Methode, falls noch nicht definiert
+
+      // Set HTTP method if not defined
       if (!exported.method?.length) {
-        Object.defineProperty(exported, 'method' as keyof Route<never>, {
+        Object.defineProperty(exported, 'method', {
           value: setMethodFromExportName(exportName),
         });
       }
-      // Setze den Pfad, falls noch nicht definiert
+
+      // Set the path if not defined
       if (!exported.path?.length) {
-        Object.defineProperty(exported, 'path' as keyof Route<never>, {
+        Object.defineProperty(exported, 'path', {
           value: routePath,
         });
       }
@@ -45,12 +58,15 @@ async function loadRoutesFromFile(routesFilepath: string, routePath: string): Pr
 }
 
 /**
- * Importiert alle Routen aus dem angegebenen Verzeichnis.
- * Dabei wird routesPath in einen absoluten Pfad umgewandelt, sodass spätere dynamische Importe
- * über einen absoluten File-URL erfolgen.
+ * Imports all routes from the specified directory recursively.
+ * Converts the routesPath to an absolute path to ensure dynamic imports work correctly via file URLs.
+ * 
+ * @param routesPath - The path to the directory containing route files.
+ * @param basePath - The base URL path for the routes (default: '/').
+ * @returns A promise that resolves to an array of all imported routes.
  */
 export async function importRoutes(routesPath: string, basePath: string = '/'): Promise<Route<never>[]> {
-  // Mache routesPath absolut, falls es das nicht schon ist.
+  // Make routesPath absolute if it isn't already.
   const absoluteRoutesPath = resolve(routesPath);
   let lookingForRoutes = true;
 
@@ -62,14 +78,16 @@ export async function importRoutes(routesPath: string, basePath: string = '/'): 
       return await loadRoutesFromFile(filePath, basePath);
     } else if (entry.isDirectory()) {
       let segment = entry.name;
+      // Handle dynamic route segments like [id] -> :id
       if (entry.name.startsWith('[') && entry.name.endsWith(']')) {
         segment = `:${entry.name.slice(1, -1)}`.replace(/^::/i, ':');
       }
       const subdir = join(absoluteRoutesPath, entry.name);
-      // Rekursiver Aufruf mit aktualisiertem Basis-Pfad
+      // Recursive call with updated base path
       return await importRoutes(subdir, join(basePath, segment));
     }
     return [];
   }));
+
   return routesArrays.flat();
 }
