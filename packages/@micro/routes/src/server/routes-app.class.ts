@@ -19,33 +19,33 @@ type RawRouteHandler = (res: HttpResponse, req: HttpRequest) => void | Promise<v
 
 /**
  * Registers a route handler with the underlying uWebSockets.js app.
- * 
+ *
  * @param app - The uWebSockets.js app instance.
  * @param route - The route definition.
  * @param handler - The handler function.
  */
 function registerRoute(app: TemplatedApp, route: Route<never>, handler: RawRouteHandler) {
   switch (route.method) {
-    case 'GET':
-      return app.get(route.path, handler);
-    case 'POST':
-      return app.post(route.path, handler);
-    case 'PUT':
-      return app.put(route.path, handler);
-    case 'DELETE':
-      return app.del(route.path, handler);
-    case 'PATCH':
-      return app.patch(route.path, handler);
-    case 'OPTIONS':
-      return app.options(route.path, handler);
-    case 'HEAD':
-      return app.head(route.path, handler);
-    case 'TRACE':
-      return app.trace(route.path, handler);
-    case 'CONNECT':
-      return app.connect(route.path, handler);
-    case 'ANY':
-      return app.any(route.path, handler);
+  case 'GET':
+    return app.get(route.path, handler);
+  case 'POST':
+    return app.post(route.path, handler);
+  case 'PUT':
+    return app.put(route.path, handler);
+  case 'DELETE':
+    return app.del(route.path, handler);
+  case 'PATCH':
+    return app.patch(route.path, handler);
+  case 'OPTIONS':
+    return app.options(route.path, handler);
+  case 'HEAD':
+    return app.head(route.path, handler);
+  case 'TRACE':
+    return app.trace(route.path, handler);
+  case 'CONNECT':
+    return app.connect(route.path, handler);
+  case 'ANY':
+    return app.any(route.path, handler);
   }
 }
 
@@ -90,7 +90,7 @@ export class RoutesApp {
 
   /**
    * Creates a new RoutesApp instance.
-   * 
+   *
    * @param options - Configuration options for the application.
    */
   public constructor(private readonly options?: CreateRoutesAppOptions) {
@@ -106,7 +106,7 @@ export class RoutesApp {
 
   /**
    * Adds a server name (virtual host) to the application.
-   * 
+   *
    * @param hostname - The hostname to add.
    * @param options - Optional configuration for the virtual host.
    * @returns The RoutesApp instance for chaining.
@@ -122,7 +122,7 @@ export class RoutesApp {
 
   /**
    * Removes a server name from the application.
-   * 
+   *
    * @param hostname - The hostname to remove.
    * @returns The RoutesApp instance for chaining.
    */
@@ -139,7 +139,7 @@ export class RoutesApp {
   /**
    * Executes the error middleware chain.
    * Optimized to avoid creating closures inside the loop.
-   * 
+   *
    * @param error - The error that occurred.
    * @param args - The arguments for the error middleware.
    */
@@ -164,7 +164,7 @@ export class RoutesApp {
 
   /**
    * Creates a raw route handler for uWebSockets.js.
-   * 
+   *
    * @param route - The route to handle.
    * @returns A function that handles the raw request and response.
    */
@@ -206,7 +206,7 @@ export class RoutesApp {
 
   /**
    * Adds a route to the application and registers it with uWebSockets.js.
-   * 
+   *
    * @param route - The route to add.
    */
   private addRoute(route: Route<never>) {
@@ -233,7 +233,7 @@ export class RoutesApp {
 
   /**
    * Registers middlewares or routes with the application.
-   * 
+   *
    * @param middlewaresOrRoutes - The middlewares or routes to register.
    * @returns The RoutesApp instance for chaining.
    */
@@ -257,7 +257,7 @@ export class RoutesApp {
 
   /**
    * Starts listening on the specified port.
-   * 
+   *
    * @param port - The port to listen on.
    * @param cb - Callback function when listening starts.
    * @returns The RoutesApp instance.
@@ -265,7 +265,7 @@ export class RoutesApp {
   listen(port: number, cb: UWSListenCallback): RoutesApp;
   /**
    * Starts listening on the specified host and port.
-   * 
+   *
    * @param host - The host to listen on.
    * @param port - The port to listen on.
    * @param cb - Callback function when listening starts.
@@ -284,7 +284,7 @@ export class RoutesApp {
 
   /**
    * Starts listening on the specified port with exclusive access.
-   * 
+   *
    * @param port - The port to listen on.
    * @param cb - Callback function when listening starts.
    * @returns The RoutesApp instance.
@@ -296,7 +296,7 @@ export class RoutesApp {
 
   /**
    * Starts listening on a Unix socket.
-   * 
+   *
    * @param cb - Callback function when listening starts.
    * @param path - The path to the Unix socket.
    * @returns The RoutesApp instance.

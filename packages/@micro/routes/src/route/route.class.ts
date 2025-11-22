@@ -12,7 +12,7 @@ import { type HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
 /**
  * Represents a defined route within the application.
  * Handles request execution, parameter extraction, and validation.
- * 
+ *
  * @template S - The shape of the route parameters.
  */
 export class Route<S extends RouteParams> {
@@ -28,7 +28,7 @@ export class Route<S extends RouteParams> {
 
   /**
    * Creates a new Route instance.
-   * 
+   *
    * @param name - The unique name of the route.
    * @param path - The URL path pattern for the route.
    * @param method - The HTTP method for the route.
@@ -52,7 +52,7 @@ export class Route<S extends RouteParams> {
   /**
    * Extracts and validates parameters from the request.
    * Optimized to reduce object allocations by only creating the params object if needed.
-   * 
+   *
    * @param req - The incoming request object.
    * @returns An object containing the extracted parameters and any validation errors.
    */
@@ -99,7 +99,7 @@ export class Route<S extends RouteParams> {
   /**
    * Handles an incoming request.
    * Optimized for performance by minimizing per-request overhead.
-   * 
+   *
    * @param req - The request object.
    * @param res - The response object.
    * @param app - The application instance.

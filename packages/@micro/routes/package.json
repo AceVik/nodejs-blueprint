@@ -6,11 +6,16 @@
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
-    "./router": "./lib/router/index.js"
+    "./router": "./lib/router/index.js",
+    "./route": "./lib/route/index.js",
+    "./param": "./lib/route/param/index.js"
   },
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "pnpm build"
+    "prepublishOnly": "pnpm build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "check": "tsc --noEmit"
   },
   "files": [
     "lib",
@@ -18,14 +23,13 @@
   ],
   "devDependencies": {
     "@types/node": "^24.10.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4.1.5"
   },
   "peerDependencies": {
     "zod": "^4.1.5"
   },
   "dependencies": {
-    "@zod/core": "^0.11.6",
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.56.0",
-    "zod": "^4.1.12"
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.56.0"
   }
 }

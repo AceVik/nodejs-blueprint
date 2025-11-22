@@ -21,7 +21,7 @@ export const adapterBuilders: Record<
   header: createHeaderAdapter,
 };
 
-// Intern: Funktion, die einen RouteParam mit einem bestimmten Adapter erstellt
+// Internal: Function to create a RouteParam with a specific adapter
 function createRouteParamWithHandler<S extends ZodType, AP extends AdapterType>(
   sourceType: RouteParamType,
   adapterType: AP,
@@ -43,10 +43,26 @@ function createRouteParamWithHandler<S extends ZodType, AP extends AdapterType>(
 // ---------------------------------------------------
 
 // fromParam: Default-Adapter ('first')
+
+/**
+ * Creates a RouteParam that reads the first occurrence of a parameter.
+ *
+ * @param sourceType - The source of the parameter (path, query, header).
+ * @param schema - The Zod schema for validation.
+ * @returns A RouteParam instance.
+ */
 export function fromParam<S extends ZodType>(
   sourceType: RouteParamType,
   schema: S,
 ): RouteParam<z.infer<S>>;
+/**
+ * Creates a RouteParam that reads the first occurrence of a parameter.
+ *
+ * @param sourceType - The source of the parameter.
+ * @param name - The name(s) of the parameter.
+ * @param schema - The Zod schema.
+ * @returns A RouteParam instance.
+ */
 export function fromParam<S extends ZodType>(
   sourceType: RouteParamType,
   name: string | string[],
@@ -72,10 +88,26 @@ export function fromParam<S extends ZodType>(
 }
 
 // lastFromParam: Adapter ('last')
+
+/**
+ * Creates a RouteParam that reads the last occurrence of a parameter.
+ *
+ * @param sourceType - The source of the parameter.
+ * @param schema - The Zod schema.
+ * @returns A RouteParam instance.
+ */
 export function lastFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   schema: S,
 ): RouteParam<z.infer<S>, 'last'>;
+/**
+ * Creates a RouteParam that reads the last occurrence of a parameter.
+ *
+ * @param sourceType - The source of the parameter.
+ * @param name - The name(s) of the parameter.
+ * @param schema - The Zod schema.
+ * @returns A RouteParam instance.
+ */
 export function lastFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   name: string | string[],
@@ -101,10 +133,26 @@ export function lastFromParam<S extends ZodType>(
 }
 
 // allFromParam: Adapter ('all')
+
+/**
+ * Creates a RouteParam that reads all occurrences of a parameter as an array.
+ *
+ * @param sourceType - The source of the parameter.
+ * @param schema - The Zod schema (must be an array schema).
+ * @returns A RouteParam instance.
+ */
 export function allFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   schema: S,
 ): RouteParam<z.infer<S>, 'all'>;
+/**
+ * Creates a RouteParam that reads all occurrences of a parameter as an array.
+ *
+ * @param sourceType - The source of the parameter.
+ * @param name - The name(s) of the parameter.
+ * @param schema - The Zod schema.
+ * @returns A RouteParam instance.
+ */
 export function allFromParam<S extends ZodType>(
   sourceType: RouteParamType,
   name: string | string[],

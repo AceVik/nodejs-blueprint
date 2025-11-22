@@ -4,8 +4,17 @@ import { PathParamsHandler, HeadersHandler } from './handlers/index.js';
 
 const dec = new TextDecoder('ascii');
 
+/**
+ * Wrapper around the uWebSockets.js HttpRequest and HttpResponse.
+ * Provides convenient access to request properties like URL, method, headers, and query parameters.
+ */
 export class Request {
   private _url: string | null = null;
+
+  /**
+   * Gets the request URL.
+   * Cached after the first access.
+   */
   public get url(): string {
     if (!this._url) {
       this._url = this.req.getUrl();
@@ -15,6 +24,11 @@ export class Request {
   }
 
   private _method: RequestMethod | null = null;
+
+  /**
+   * Gets the HTTP method of the request.
+   * Cached after the first access.
+   */
   public get method(): RequestMethod {
     if (!this._method) {
       this._method = this.req.getMethod().toUpperCase() as RequestMethod;
@@ -24,6 +38,11 @@ export class Request {
   }
 
   private _remoteAddress: string | null = null;
+
+  /**
+   * Gets the remote address of the client.
+   * Cached after the first access.
+   */
   public get remoteAddress(): string {
     if (!this._remoteAddress) {
       this._remoteAddress = dec.decode(this.res.getRemoteAddressAsText());
@@ -33,6 +52,11 @@ export class Request {
   }
 
   private _remoteProxyAddress: string | null = null;
+
+  /**
+   * Gets the proxied remote address of the client.
+   * Cached after the first access.
+   */
   public get remoteProxyAddress(): string {
     if (!this._remoteProxyAddress) {
       this._remoteProxyAddress = dec.decode(this.res.getProxiedRemoteAddressAsText());
@@ -42,6 +66,11 @@ export class Request {
   }
 
   private _query: QueryParamsHandler | null = null;
+
+  /**
+   * Gets the query parameters handler.
+   * Cached after the first access.
+   */
   public get query(): QueryParamsHandler {
     if (!this._query) {
       this._query = new URLSearchParams(this.req.getQuery());
@@ -50,13 +79,29 @@ export class Request {
     return this._query;
   }
 
+  /**
+   * Handler for path parameters.
+   */
   public readonly path: PathParamsHandler;
+
+  /**
+   * Handler for request headers.
+   */
   public readonly headers: HeadersHandler;
 
+  /**
+   * Gets the raw uWebSockets.js HttpRequest object.
+   */
   public get raw(): HttpRequest {
     return this.req;
   }
 
+  /**
+   * Creates a new Request instance.
+   *
+   * @param req - The raw uWebSockets.js HttpRequest.
+   * @param res - The raw uWebSockets.js HttpResponse (needed for address decoding).
+   */
   constructor(private readonly req: HttpRequest, private readonly res: HttpResponse) {
     this.path = new PathParamsHandler(req);
     this.headers = new HeadersHandler(req);

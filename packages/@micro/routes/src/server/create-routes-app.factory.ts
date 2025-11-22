@@ -3,7 +3,7 @@ import { RoutesApp } from './routes-app.class.js';
 
 /**
  * Factory function to create a new instance of RoutesApp.
- * 
+ *
  * @param options - Configuration options for the RoutesApp.
  * @returns A new RoutesApp instance.
  */

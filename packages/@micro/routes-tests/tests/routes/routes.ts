@@ -2,7 +2,7 @@ import { route } from '@micro/routes';
 
 // GET /
 export const getStuff = route({
-  desc: 'Get stuff',
+  method: 'GET',
 }, async ({ req }) => {
   console.log(req);
 });

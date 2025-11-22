@@ -10,7 +10,20 @@ import { camelToKebab } from '../utils/camel-to-kebab.util.js';
 const empty = '';
 const emptyRequestMethod = empty as RequestMethod;
 
+/**
+ * Creates a new route definition.
+ *
+ * @param handler - The route handler function.
+ * @returns A new Route instance.
+ */
 export function route<S extends RouteParams>(handler: RouteHandler<S>): Route<S>;
+/**
+ * Creates a new route definition with options.
+ *
+ * @param options - The route options (params, method, availability).
+ * @param handler - The route handler function.
+ * @returns A new Route instance.
+ */
 export function route<S extends RouteParams>(options: RouteOptions<S>, handler: RouteHandler<S>): Route<S>;
 export function route<S extends RouteParams>(optionsOrHandler: RouteOptions<S> | RouteHandler<S>, handler?: RouteHandler<S>): Route<S>;
 export function route<S extends RouteParams>(optionsOrHandler: RouteOptions<S> | RouteHandler<S>, handler?: RouteHandler<S>): Route<S> {

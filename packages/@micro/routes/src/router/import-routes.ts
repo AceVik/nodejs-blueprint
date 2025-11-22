@@ -5,7 +5,7 @@ import { requestMethods, type RequestMethod } from '../http/index.js';
 
 /**
  * Infers the HTTP method from the export name.
- * 
+ *
  * @param exportName - The name of the exported member.
  * @returns The inferred HTTP method, defaults to 'GET'.
  */
@@ -19,7 +19,7 @@ function setMethodFromExportName(exportName: string): RequestMethod {
 
 /**
  * Loads routes from a specific file.
- * 
+ *
  * @param routesFilepath - The absolute path to the routes file.
  * @param routePath - The base route path for the loaded routes.
  * @returns A promise that resolves to an array of loaded routes.
@@ -60,7 +60,7 @@ async function loadRoutesFromFile(routesFilepath: string, routePath: string): Pr
 /**
  * Imports all routes from the specified directory recursively.
  * Converts the routesPath to an absolute path to ensure dynamic imports work correctly via file URLs.
- * 
+ *
  * @param routesPath - The path to the directory containing route files.
  * @param basePath - The base URL path for the routes (default: '/').
  * @returns A promise that resolves to an array of all imported routes.
