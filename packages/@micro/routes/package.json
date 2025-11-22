@@ -8,7 +8,9 @@
     ".": "./lib/index.js",
     "./router": "./lib/router/index.js",
     "./route": "./lib/route/index.js",
-    "./param": "./lib/route/param/index.js"
+    "./http": "./lib/http/index.js",
+    "./middleware": "./lib/middleware/index.js",
+    "./utils": "./lib/utils/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -24,12 +26,15 @@
   "devDependencies": {
     "@types/node": "^24.10.1",
     "typescript": "^5.9.3",
-    "zod": "^4.1.5"
+    "zod": "^4.1.5",
+    "@asteasolutions/zod-to-openapi": "^8.1.0"
   },
   "peerDependencies": {
-    "zod": "^4.1.5"
+    "zod": "^4.1.5",
+    "@asteasolutions/zod-to-openapi": "^8.1.0"
   },
   "dependencies": {
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.56.0"
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.56.0",
+    "openapi3-ts": "^4.5.0"
   }
 }

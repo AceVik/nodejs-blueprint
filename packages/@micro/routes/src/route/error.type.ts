@@ -1,9 +1,26 @@
-import type { HttpStatusCode } from '../http/index.js';
-import type { HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
+import { z } from 'zod';
+import { HttpStatus } from '../http/index.js';
+import { HttpErrorErrorsSchema } from '../http/errors/http-error-errors.type.js';
 
-export type RouteError = {
-  status: HttpStatusCode;
-  statusPhrase: string;
-  message: string;
-  errors?: HttpErrorErrors;
-};
+export const RouteErrorSchema = z.object({
+  status: z.number().int().min(HttpStatus.MIN).max(HttpStatus.MAX).openapi({
+    description: 'The HTTP status code',
+    example: HttpStatus.BAD_REQUEST,
+  }),
+  statusPhrase: z.string().openapi({
+    description: 'The standard HTTP status phrase',
+    example: 'Bad Request',
+  }),
+  message: z.string().openapi({
+    description: 'A human-readable error message',
+    example: 'Input validation failed',
+  }),
+  errors: HttpErrorErrorsSchema,
+}).openapi(
+  'RouteError',
+  {
+    description: 'Standardized error response structure',
+  },
+);
+
+export type RouteError = z.infer<typeof RouteErrorSchema>;

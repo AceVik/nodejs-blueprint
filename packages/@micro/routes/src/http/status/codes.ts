@@ -1,3 +1,6 @@
+export const MIN = 100;
+export const MAX = 599;
+
 // Informational responses (100–199)
 export const CONTINUE = 100;
 export const SWITCHING_PROTOCOLS = 101;

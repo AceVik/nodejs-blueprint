@@ -8,6 +8,19 @@ export const getStuff = route({
     test3: fromQuery(z.boolean()),
     userAgent: fromHeader(z.string()),
   },
+  // Gives middlewares and order executed before handler
+  before: [
+    checkIsAdmin,
+    checkHasRole('admin'),
+    checkHasPermission('readStuff'),
+  ],
+  // Gives middlewares and order executed after handler
+  after: [
+    transformFileResponseToStream,
+    appendSpecialHeaders,
+  ],
+  // How to give error middlewares?
+  // What could be else interesting for a full capability of an api route?
 }, async ({ req, res, params, app }) => {
   res.send(JSON.stringify({
     method: req.method,
