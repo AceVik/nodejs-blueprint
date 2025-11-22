@@ -7,10 +7,11 @@ import {
 } from '../http/index.js';
 import { RoutesApp } from '../server/index.js';
 import { type RouteAvailability, type RouteRequestMethod } from './route-options.type.js';
+import { type HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
 
 export class Route<S extends RouteParams> {
   public exec: RouteHandler<S>;
-  private paramKeys: string[];
+  private readonly paramKeys: string[];
 
   constructor(
     public readonly name: string,
@@ -64,7 +65,7 @@ export class Route<S extends RouteParams> {
   public async handleRequest(req:Request, res: Response, app: RoutesApp, onAborted: (handler: () => void) => void) {
     const { params, errors: paramErrors } = this.extractParams(req);
     if (paramErrors.length > 0) {
-      throw new BadRequestError('Invalid request parameters', paramErrors);
+      throw new BadRequestError('Invalid request parameters', paramErrors as HttpErrorErrors);
     }
 
     const routeHandlerArgs = {

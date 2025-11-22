@@ -13,15 +13,15 @@
     "index.d.ts"
   ],
   "devDependencies": {
-    "@types/node": "^22.15.3",
-    "typescript": "^5.8.3"
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "zod": "^4.1.5"
   },
   "dependencies": {
     "@zod/core": "^0.11.6",
-    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.52.0",
-    "zod": "^4.1.5"
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.56.0",
+    "zod": "^4.1.12"
   }
 }
