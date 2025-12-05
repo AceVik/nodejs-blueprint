@@ -1,7 +1,4 @@
-import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { z } from 'zod';
-
-extendZodWithOpenApi(z);
+import './setup/openapi.js';
 
 export * from './server/index.js';
 export * from './route/index.js';

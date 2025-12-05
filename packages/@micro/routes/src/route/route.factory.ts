@@ -43,6 +43,6 @@ export function route<S extends RouteParams>(optionsOrHandler: RouteOptions<S> |
           });
       }
 
-    return new Route(empty, empty, optionsOrHandler.method || emptyRequestMethod, handler!, hostnames, optionsOrHandler.params);
+    return new Route(empty, empty, optionsOrHandler.method || emptyRequestMethod, handler!, hostnames, optionsOrHandler.params, optionsOrHandler.meta);
   }
 }

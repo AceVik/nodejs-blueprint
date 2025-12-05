@@ -7,6 +7,31 @@ export type RouteRequestMethod = RequestMethod | 'ANY';
 export type Hostname = string;
 export type RouteAvailability = Hostname | Hostname[] | 'all' | 'base' | 'any';
 
+/**
+ * Route openapi meta information
+ */
+export type RouteMeta = {
+  /**
+   * Route openapi summary
+   */
+  summary?: string;
+
+  /**
+   * Route openapi description
+   */
+  description?: string;
+
+  /**
+   * Route openapi tags
+   */
+  tags?: string[];
+
+  /**
+   * Route is deprecated (for openapi)
+   */
+  deprecated?: boolean;
+};
+
 export type RouteOptions<S extends RouteParams> = {
   /**
    * Available for domains.
@@ -33,12 +58,7 @@ export type RouteOptions<S extends RouteParams> = {
   errorMiddlewares?: Record<string, ErrorMiddleware>;
 
   /**
-   * Route openapi summary
+   * Route openapi meta information
    */
-  summary?: string;
-
-  /**
-   * Route openapi description
-   */
-  description?: string;
+  meta?: RouteMeta;
 };

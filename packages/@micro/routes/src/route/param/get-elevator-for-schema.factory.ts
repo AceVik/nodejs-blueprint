@@ -1,7 +1,8 @@
-import { type ZodType, ZodArray, ZodBigInt, ZodBoolean, ZodNumber, ZodObject, ZodUnion, ZodDate } from 'zod';
+import { type ZodType, ZodArray, ZodBigInt, ZodBoolean, ZodNumber, ZodObject, ZodUnion, ZodDate, ZodString } from 'zod';
 import type { AdapterType } from './adapters/index.js';
 import type { ElevationHandler } from './route-param.class.js';
 import { tryParse } from '../../utils/index.js';
+import { SchemaObject } from 'openapi3-ts/oas31';
 
 const arrayInnerElevator = (innerElevator: ElevationHandler<unknown, 'first' | 'last'>): ElevationHandler<unknown, 'all'> => {
   return (values) => {
@@ -91,4 +92,31 @@ export function getElevatorForSchema<T>(schema: ZodType<T>, adapterType: Adapter
 
   // No elevator found
   return undefined;
+}
+
+/**
+ * Helper to determine the basic OpenAPI type from a Zod Schema.
+ * Useful for early validation or optimizations before full generation.
+ */
+export function getOpenApiTypeForSchema(schema: ZodType): SchemaObject['type'] {
+  if ('unwrap' in schema && typeof schema.unwrap === 'function') {
+    return getOpenApiTypeForSchema(schema.unwrap() as ZodType);
+  }
+
+  if (schema instanceof ZodString) return 'string';
+  if (schema instanceof ZodNumber) return 'number';
+  if (schema instanceof ZodBigInt) return 'integer';
+  if (schema instanceof ZodBoolean) return 'boolean';
+  if (schema instanceof ZodDate) return 'string';
+  if (schema instanceof ZodArray) return 'array';
+  if (schema instanceof ZodObject) return 'object';
+
+  if (schema instanceof ZodUnion) {
+    // If it's a union, we check if all options have the same type, otherwise undefined/mixed
+    const types = schema.options.map((opt) => getOpenApiTypeForSchema(opt as ZodType));
+    const firstType = types[0];
+    return types.every((t) => t === firstType) ? firstType : undefined;
+  }
+
+  return undefined; // Default/Unknown
 }

@@ -6,7 +6,7 @@ import {
   BadRequestError,
 } from '../http/index.js';
 import { RoutesApp } from '../server/index.js';
-import { type RouteAvailability, type RouteRequestMethod } from './route-options.type.js';
+import { type RouteAvailability, RouteMeta, type RouteRequestMethod } from './route-options.type.js';
 import { type HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
 
 /**
@@ -35,6 +35,7 @@ export class Route<S extends RouteParams> {
    * @param handler - The handler function to execute.
    * @param hostnames - The hostnames this route is available on.
    * @param params - Optional parameter definitions for validation and extraction.
+   * @param meta - Optional openapi meta information.
    */
   constructor(
     public readonly name: string,
@@ -43,6 +44,7 @@ export class Route<S extends RouteParams> {
     handler: RouteHandler<S>,
     public readonly hostnames: RouteAvailability,
     public readonly params?: S,
+    public readonly meta?: RouteMeta,
   ) {
     this.exec = handler;
     // Cache keys for performance (params are static per route)

@@ -11,6 +11,11 @@ import { getElevatorForSchema } from './get-elevator-for-schema.factory.js';
 export type ElevationHandler<T, AP extends AdapterType> =
   AP extends 'all' ? (value: string[] | null | undefined) => T : (value: string | null | undefined) => T;
 
+export type RouteParamMeta =  {
+  description?: string;
+  deprecated?: boolean;
+};
+
 /**
  * Represents a route parameter definition.
  * Handles reading, validating, and transforming parameter values from the request.
@@ -29,6 +34,7 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
    * @param schema - The Zod schema for validation.
    * @param readType - The adapter type.
    * @param readAndValidateValueHandler - The handler to read and validate the value.
+   * @param meta - The openapi meta information.
    */
   constructor(
     public readonly type: RouteParamType,
@@ -36,6 +42,7 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
     public readonly schema: ZodType<T>,
     public readonly readType: AP,
     private readonly readAndValidateValueHandler: RouteParamAdapter<T>,
+    public readonly meta?: RouteParamMeta,
   ) {
     if (this.readType === 'all') {
       assert(this.schema instanceof ZodArray, 'Cannot use "all" adapter type with non-array schema');
@@ -102,6 +109,7 @@ export function createRouteParam<T, AP extends AdapterType = 'first'>(
   schema: ZodType<T>,
   readType: AP,
   handler: RouteParamAdapter<T>,
+  meta?: RouteParamMeta,
 ): RouteParam<T, AP> {
-  return new RouteParam<T, AP>(type, names, schema, readType, handler);
+  return new RouteParam<T, AP>(type, names, schema, readType, handler, meta);
 }

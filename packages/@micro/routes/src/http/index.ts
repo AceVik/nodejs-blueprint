@@ -1,3 +1,4 @@
+import '../setup/openapi.js';
 export * from './request/index.js';
 export * from './response/index.js';
 export * from './errors/index.js';

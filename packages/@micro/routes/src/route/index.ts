@@ -1,3 +1,4 @@
+import '../setup/openapi.js';
 export * from './route.factory.js';
 export * from './route.class.js';
 export * from './route-options.type.js';

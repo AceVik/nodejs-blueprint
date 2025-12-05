@@ -12,7 +12,9 @@ import { type Hostname, Route } from '../route/index.js';
 import { ErrorMiddleware, type ErrorMiddlewareHandlerArgs, type NextFunction, type NextParams } from '../middleware/index.js';
 import { httpErrorMiddleware, serverErrorMiddleware } from '../middleware/error/presets/index.js';
 import { Request, Response } from '../http/index.js';
-import { HTTP_ERROR_MIDDLEWARE, SERVER_ERROR_MIDDLEWARE } from '../middleware/error/symbols.js';
+import { HTTP_ERROR_MIDDLEWARE, SERVER_ERROR_MIDDLEWARE } from '../middleware/index.js';
+import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
+import { OpenApiGenerator } from './openapi/openapi-generator.js';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 type RawRouteHandler = (res: HttpResponse, req: HttpRequest) => void | Promise<void>;
@@ -304,5 +306,16 @@ export class RoutesApp {
   public listenUnix(cb: UWSListenCallback, path: RecognizedString): RoutesApp {
     this.rawApp.listen_unix(cb, path);
     return this;
+  }
+
+  /**
+   * Generates the OpenAPI 3.1 specification for the application.
+   *
+   * @param info - The API information object.
+   * @returns The OpenAPI specification object.
+   */
+  public getOpenApiSchema(info: InfoObject): OpenAPIObject {
+    const generator = new OpenApiGenerator();
+    return generator.generate(info, this.routes, this.errorMiddlewares);
   }
 }
