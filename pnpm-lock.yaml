@@ -74,6 +74,9 @@ importers:
 
   packages/app:
     dependencies:
+      '@asteasolutions/zod-to-openapi':
+        specifier: ^8.2.0
+        version: 8.2.0(zod@4.1.13)
       '@micro/routes':
         specifier: workspace:*
         version: link:../@micro/routes

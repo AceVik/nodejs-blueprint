@@ -1,5 +1,6 @@
-import { errorMiddleware, HttpStatus } from '@micro/routes';
+import { HttpStatus } from '@micro/routes';
 import { z } from 'zod';
+import { errorMiddleware } from '@micro/routes/middleware';
 
 export const testErrorMiddleware = errorMiddleware(
   {

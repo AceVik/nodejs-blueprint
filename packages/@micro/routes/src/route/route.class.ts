@@ -27,6 +27,11 @@ export class Route<S extends RouteParams> {
   private readonly paramKeys: string[];
 
   /**
+   * OpenApi meta information.
+   */
+  public meta?: RouteMeta;
+
+  /**
    * Creates a new Route instance.
    *
    * @param name - The unique name of the route.
@@ -35,7 +40,6 @@ export class Route<S extends RouteParams> {
    * @param handler - The handler function to execute.
    * @param hostnames - The hostnames this route is available on.
    * @param params - Optional parameter definitions for validation and extraction.
-   * @param meta - Optional openapi meta information.
    */
   constructor(
     public readonly name: string,
@@ -44,11 +48,19 @@ export class Route<S extends RouteParams> {
     handler: RouteHandler<S>,
     public readonly hostnames: RouteAvailability,
     public readonly params?: S,
-    public readonly meta?: RouteMeta,
   ) {
     this.exec = handler;
     // Cache keys for performance (params are static per route)
     this.paramKeys = this.params ? Object.keys(this.params) : [];
+  }
+
+  /**
+   * Sets the openapi meta information.
+   * @param meta
+   */
+  public openapi(meta: RouteMeta) : this {
+    this.meta = meta;
+    return this;
   }
 
   /**

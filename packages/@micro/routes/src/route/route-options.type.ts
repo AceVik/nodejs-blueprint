@@ -56,9 +56,4 @@ export type RouteOptions<S extends RouteParams> = {
    * Route error middlewares.
    */
   errorMiddlewares?: Record<string, ErrorMiddleware>;
-
-  /**
-   * Route openapi meta information
-   */
-  meta?: RouteMeta;
 };

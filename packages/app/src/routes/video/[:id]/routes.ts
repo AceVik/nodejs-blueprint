@@ -1,9 +1,14 @@
-import { route } from '@micro/routes';
+import { fromPath, route } from '@micro/routes';
+import { z } from 'zod';
 
 
 // GET /video/:id
-export const getStuff = route(async ({ res, req }) => {
-
+export const getStuff = route({
+  params: {
+    id: fromPath(z.uuidv7()),
+  },
+}, async ({ params: { id } }) => {
+  console.log(id);
 });
 
 

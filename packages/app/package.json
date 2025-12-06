@@ -6,6 +6,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "routes": "tsx src/cli/print-routes.ts",
     "build": "tsc && tsc-alias",
     "start": "node dist/index.js",
     "lint": "eslint . --ext .ts,.js",
@@ -15,7 +16,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@micro/routes": "workspace:*"
+    "@micro/routes": "workspace:*",
+    "@asteasolutions/zod-to-openapi": "^8.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

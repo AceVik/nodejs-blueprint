@@ -1,8 +1,8 @@
 import { OpenApiGeneratorV31, OpenAPIRegistry, type RouteConfig } from '@asteasolutions/zod-to-openapi';
-import { z, type ZodType } from 'zod';
+import { type ZodType } from 'zod';
 import { type Route, type RouteParam } from '../../route/index.js';
 import type { ErrorMiddleware } from '../../middleware/index.js';
-import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
+import type { InfoObject, OpenAPIObject, ParameterObject, SchemaObject } from 'openapi3-ts/oas31';
 
 export class OpenApiGenerator {
   private readonly registry: OpenAPIRegistry;
@@ -51,27 +51,22 @@ export class OpenApiGenerator {
     const routeConfig: RouteConfig = {
       method: (route.method.toLowerCase?.() ?? String(route.method).toLowerCase()) as RouteConfig['method'],
       path: openApiPath,
-      summary: route.name,
-      request: {
-        params: z.object(
-          pathParams.reduce((acc: Record<string, unknown>, curr: any) => {
-            const name = (curr as any)._def?.openapi?.param?.name as string | undefined;
-            return name ? { ...acc, [name]: curr } : acc;
-          }, {}),
-        ),
-        query: z.object(
-          queryParams.reduce((acc: Record<string, unknown>, curr: any) => {
-            const name = (curr as any)._def?.openapi?.param?.name as string | undefined;
-            return name ? { ...acc, [name]: curr } : acc;
-          }, {}),
-        ),
-        headers: z.object(
-          headerParams.reduce((acc: Record<string, unknown>, curr: any) => {
-            const name = (curr as any)._def?.openapi?.param?.name as string | undefined;
-            return name ? { ...acc, [name]: curr } : acc;
-          }, {}),
-        ),
-      },
+      tags: route.meta?.tags,
+      summary: route.meta?.summary ?? route.name,
+      description: route.meta?.description,
+      deprecated: route.meta?.deprecated,
+      parameters: Object.entries((route.params ?? {}) as Record<string, RouteParam<never>>).map((([name, p]) => {
+        return {
+          name: p.names?.[0] ?? name,
+          in: p.type,
+          required: !p.schema.safeParse(undefined).success,
+          schema: p.schema.openapi(p.meta ?? {}, {  }),
+          description: p.meta?.description || p.schema.meta()?.description || p.schema.description,
+          deprecated: p.meta?.deprecated || p.schema.meta()?.deprecated,
+          example: p.schema.meta()?.title,
+          allowEmptyValue: p.schema.safeParse('').success,
+        } satisfies ParameterObject;
+      })),
       responses: {
         200: {
           description: 'Successful response',

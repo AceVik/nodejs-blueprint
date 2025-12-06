@@ -24,6 +24,11 @@ export type RouteParamMeta =  {
  * @template AP - The adapter type ('first', 'last', 'all').
  */
 export class RouteParam<T, AP extends AdapterType = 'first'> {
+  /**
+   * OpenApi meta information.
+   */
+  public meta?: RouteParamMeta;
+
   private _elevationHandler: ElevationHandler<T, AP> | undefined;
 
   /**
@@ -34,7 +39,6 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
    * @param schema - The Zod schema for validation.
    * @param readType - The adapter type.
    * @param readAndValidateValueHandler - The handler to read and validate the value.
-   * @param meta - The openapi meta information.
    */
   constructor(
     public readonly type: RouteParamType,
@@ -42,13 +46,21 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
     public readonly schema: ZodType<T>,
     public readonly readType: AP,
     private readonly readAndValidateValueHandler: RouteParamAdapter<T>,
-    public readonly meta?: RouteParamMeta,
   ) {
     if (this.readType === 'all') {
       assert(this.schema instanceof ZodArray, 'Cannot use "all" adapter type with non-array schema');
     }
     this.readAndValidateValueHandler.bind(this);
     this._elevationHandler = getElevatorForSchema(this.schema, this.readType) as ElevationHandler<T, AP> | undefined;
+  }
+
+  /**
+   * Sets the openapi meta-information.
+   * @param meta
+   */
+  public openapi(meta: RouteParamMeta): this {
+    this.meta = meta;
+    return this;
   }
 
   /**
@@ -109,7 +121,6 @@ export function createRouteParam<T, AP extends AdapterType = 'first'>(
   schema: ZodType<T>,
   readType: AP,
   handler: RouteParamAdapter<T>,
-  meta?: RouteParamMeta,
 ): RouteParam<T, AP> {
-  return new RouteParam<T, AP>(type, names, schema, readType, handler, meta);
+  return new RouteParam<T, AP>(type, names, schema, readType, handler);
 }
