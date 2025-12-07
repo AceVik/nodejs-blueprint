@@ -8,6 +8,7 @@
     ".": "./lib/index.js",
     "./router": "./lib/router/index.js",
     "./route": "./lib/route/index.js",
+    "./param": "./lib/route/param/index.js",
     "./http": "./lib/http/index.js",
     "./middleware": "./lib/middleware/index.js",
     "./utils": "./lib/utils/index.js"

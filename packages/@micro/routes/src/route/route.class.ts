@@ -26,10 +26,6 @@ export class Route<S extends RouteParams> {
    */
   private readonly paramKeys: string[];
 
-  /**
-   * OpenApi meta information.
-   */
-  public meta?: RouteMeta;
 
   /**
    * Creates a new Route instance.
@@ -52,6 +48,7 @@ export class Route<S extends RouteParams> {
     this.exec = handler;
     // Cache keys for performance (params are static per route)
     this.paramKeys = this.params ? Object.keys(this.params) : [];
+
   }
 
   /**
@@ -59,8 +56,23 @@ export class Route<S extends RouteParams> {
    * @param meta
    */
   public openapi(meta: RouteMeta) : this {
-    this.meta = meta;
+    // Define as non-enumerable to avoid leaking into snapshots
+    if (!Object.prototype.hasOwnProperty.call(this, '_meta')) {
+      Object.defineProperty(this as unknown as Record<string, unknown>, '_meta', {
+        value: meta,
+        writable: true,
+        configurable: true,
+        enumerable: false,
+      });
+    } else {
+      (this as unknown as Record<string, unknown>)['_meta'] = meta;
+    }
     return this;
+  }
+
+  /** Returns the OpenAPI meta info for this route (if any). */
+  public get meta(): Readonly<RouteMeta> | undefined {
+    return (this as unknown as Record<string, unknown>)['_meta'] as RouteMeta | undefined;
   }
 
   /**
@@ -136,4 +148,5 @@ export class Route<S extends RouteParams> {
 
     await this.exec(routeHandlerArgs);
   }
+
 }

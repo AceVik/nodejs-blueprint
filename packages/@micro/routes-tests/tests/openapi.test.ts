@@ -28,16 +28,15 @@ describe('OpenAPI Generation', () => {
       version: '1.0.0',
     });
 
-    expect(schema.openapi).toBe('3.0.0');
+    expect(schema.openapi).toBe('3.1.0');
     expect(schema.info.title).toBe('Test API');
-    console.log(JSON.stringify(schema, null, 2));
-    expect(schema.paths['/users/{userId}']).toBeDefined();
+    expect(schema.paths!['/users/{userId}']).toBeDefined();
 
-    const getOp = schema.paths['/users/{userId}'].get;
+    const getOp = schema.paths!['/users/{userId}'].get;
     expect(getOp).toBeDefined();
-    expect(getOp.parameters).toHaveLength(3);
+    expect(getOp!.parameters).toHaveLength(3);
 
-    const params = getOp.parameters as any[];
+    const params = getOp!.parameters as any[];
     const pathParam = params.find((p) => p.in === 'path');
     const queryParam = params.find((p) => p.in === 'query');
     const headerParam = params.find((p) => p.in === 'header');
@@ -48,7 +47,7 @@ describe('OpenAPI Generation', () => {
     expect(queryParam.name).toBe('search');
     expect(queryParam.required).toBe(false);
 
-    expect(headerParam.name).toBe('apiKey');
+    expect(headerParam.name).toBe('api-key');
     expect(headerParam.required).toBe(true);
   });
 });

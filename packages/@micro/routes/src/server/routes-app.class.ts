@@ -9,7 +9,7 @@ import {
   TemplatedApp, type AppOptions,
 } from 'uWebSockets.js';
 import { type Hostname, Route } from '../route/index.js';
-import { ErrorMiddleware, type ErrorMiddlewareHandlerArgs, type NextFunction, type NextParams } from '../middleware/index.js';
+import { ErrorMiddleware, type MiddlewareHandlerArgs, type NextFunction, type NextParams } from '../middleware/index.js';
 import { httpErrorMiddleware, serverErrorMiddleware } from '../middleware/error/presets/index.js';
 import { Request, Response } from '../http/index.js';
 import { HTTP_ERROR_MIDDLEWARE, SERVER_ERROR_MIDDLEWARE } from '../middleware/index.js';
@@ -145,7 +145,7 @@ export class RoutesApp {
    * @param error - The error that occurred.
    * @param args - The arguments for the error middleware.
    */
-  private async runErrorMiddlewares(error: unknown, args: Omit<ErrorMiddlewareHandlerArgs, 'next'>) {
+  private async runErrorMiddlewares(error: unknown, args: Omit<MiddlewareHandlerArgs, 'next'>) {
     const middlewareNames = this._errorMiddlewaresOrder;
     let index = 0;
     const next: NextFunction = async (params?: NextParams) => {
