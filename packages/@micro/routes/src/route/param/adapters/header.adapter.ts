@@ -14,7 +14,7 @@ export function createHeaderAdapter<T>(
   switch (adapterType) {
   case 'first':
   default:
-    return (function (this: RouteParam<T>, req: Request, kind, elevate): T {
+    return (function (this: RouteParam<T, 'header'>, req: Request, kind, elevate): T {
       let value: string | null;
       for (let name of this.names) {
         value = req.headers.get(name);
@@ -30,7 +30,7 @@ export function createHeaderAdapter<T>(
     }) as RouteParamAdapter<T, 'first'>;
 
   case 'last':
-    return (function (this: RouteParam<T>, req: Request, kind, elevate): T {
+    return (function (this: RouteParam<T, 'header'>, req: Request, kind, elevate): T {
       let values: string[];
       for (let name of this.names) {
         values = req.headers.getAll(name);
@@ -47,7 +47,7 @@ export function createHeaderAdapter<T>(
     }) as RouteParamAdapter<T, 'last'>;
 
   case 'all':
-    return (function (this: RouteParam<T>, req: Request, kind, elevate): T {
+    return (function (this: RouteParam<T, 'header'>, req: Request, kind, elevate): T {
       let values: string[];
       for (let name of this.names) {
         values = req.headers.getAll(name);

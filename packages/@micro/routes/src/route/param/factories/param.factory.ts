@@ -6,6 +6,7 @@ import {
   createHeaderAdapter,
   createPathAdapter,
   createQueryAdapter,
+  createCookieAdapter,
 } from '../adapters/index.js';
 import { createRouteParam, type RouteParam } from '../route-param.class.js';
 
@@ -19,16 +20,17 @@ export const adapterBuilders: Record<
   path: createPathAdapter,
   query: createQueryAdapter,
   header: createHeaderAdapter,
+  cookie: createCookieAdapter,
 };
 
 // Internal: Function to create a RouteParam with a specific adapter
-function createRouteParamWithHandler<S extends ZodType, AP extends AdapterType>(
-  sourceType: RouteParamType,
+function createRouteParamWithHandler<S extends ZodType, PT extends RouteParamType, AP extends AdapterType>(
+  sourceType: PT,
   adapterType: AP,
   names: string[],
   schema: S,
-): RouteParam<z.infer<S>, AP> {
-  return createRouteParam<z.infer<S>, AP>(
+): RouteParam<z.infer<S>, PT, AP> {
+  return createRouteParam<z.infer<S>, PT, AP>(
     sourceType,
     names,
     schema as unknown as ZodType<z.infer<S>>,
@@ -51,10 +53,10 @@ function createRouteParamWithHandler<S extends ZodType, AP extends AdapterType>(
  * @param schema - The Zod schema for validation.
  * @returns A RouteParam instance.
  */
-export function fromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+export function fromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   schema: S,
-): RouteParam<z.infer<S>>;
+): RouteParam<z.infer<S>, PT>;
 /**
  * Creates a RouteParam that reads the first occurrence of a parameter.
  *
@@ -63,21 +65,21 @@ export function fromParam<S extends ZodType>(
  * @param schema - The Zod schema.
  * @returns A RouteParam instance.
  */
-export function fromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+export function fromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   name: string | string[],
   schema: S,
-): RouteParam<z.infer<S>>;
-export function fromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+): RouteParam<z.infer<S>, PT>;
+export function fromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
-): RouteParam<z.infer<S>>;
-export function fromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+): RouteParam<z.infer<S>, PT>;
+export function fromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
-): RouteParam<z.infer<S>> {
+): RouteParam<z.infer<S>, PT> {
   if (typeof nameOrSchema === 'string') {
     return createRouteParamWithHandler(sourceType, 'first', [nameOrSchema], maybeSchema!);
   } else if (Array.isArray(nameOrSchema)) {
@@ -96,10 +98,10 @@ export function fromParam<S extends ZodType>(
  * @param schema - The Zod schema.
  * @returns A RouteParam instance.
  */
-export function lastFromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+export function lastFromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   schema: S,
-): RouteParam<z.infer<S>, 'last'>;
+): RouteParam<z.infer<S>, PT, 'last'>;
 /**
  * Creates a RouteParam that reads the last occurrence of a parameter.
  *
@@ -108,21 +110,21 @@ export function lastFromParam<S extends ZodType>(
  * @param schema - The Zod schema.
  * @returns A RouteParam instance.
  */
-export function lastFromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+export function lastFromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   name: string | string[],
   schema: S,
-): RouteParam<z.infer<S>, 'last'>;
-export function lastFromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+): RouteParam<z.infer<S>, PT, 'last'>;
+export function lastFromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
-): RouteParam<z.infer<S>, 'last'>;
-export function lastFromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+): RouteParam<z.infer<S>, PT, 'last'>;
+export function lastFromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
-): RouteParam<z.infer<S>, 'last'> {
+): RouteParam<z.infer<S>, PT, 'last'> {
   if (typeof nameOrSchema === 'string') {
     return createRouteParamWithHandler(sourceType, 'last', [nameOrSchema], maybeSchema!);
   } else if (Array.isArray(nameOrSchema)) {
@@ -141,10 +143,10 @@ export function lastFromParam<S extends ZodType>(
  * @param schema - The Zod schema (must be an array schema).
  * @returns A RouteParam instance.
  */
-export function allFromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+export function allFromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   schema: S,
-): RouteParam<z.infer<S>, 'all'>;
+): RouteParam<z.infer<S>, PT, 'all'>;
 /**
  * Creates a RouteParam that reads all occurrences of a parameter as an array.
  *
@@ -153,21 +155,21 @@ export function allFromParam<S extends ZodType>(
  * @param schema - The Zod schema.
  * @returns A RouteParam instance.
  */
-export function allFromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+export function allFromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   name: string | string[],
   schema: S,
-): RouteParam<z.infer<S>, 'all'>;
-export function allFromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+): RouteParam<z.infer<S>, PT, 'all'>;
+export function allFromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
-): RouteParam<z.infer<S>, 'all'>;
-export function allFromParam<S extends ZodType>(
-  sourceType: RouteParamType,
+): RouteParam<z.infer<S>, PT, 'all'>;
+export function allFromParam<S extends ZodType, PT extends RouteParamType>(
+  sourceType: PT,
   nameOrSchema: string | string[] | S,
   maybeSchema?: S,
-): RouteParam<z.infer<S>, 'all'> {
+): RouteParam<z.infer<S>, PT, 'all'> {
   if (typeof nameOrSchema === 'string') {
     return createRouteParamWithHandler(sourceType, 'all', [nameOrSchema], maybeSchema!);
   } else if (Array.isArray(nameOrSchema)) {

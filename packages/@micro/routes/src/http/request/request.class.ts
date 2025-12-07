@@ -1,6 +1,6 @@
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
 import type { QueryParamsHandler, RequestMethod } from '../../http/index.js';
-import { PathParamsHandler, HeadersHandler } from './handlers/index.js';
+import { CookieParamsHandler, HeadersHandler, PathParamsHandler } from './handlers/index.js';
 
 const dec = new TextDecoder('ascii');
 
@@ -90,6 +90,11 @@ export class Request {
   public readonly headers: HeadersHandler;
 
   /**
+   * Handler for request cookies.
+   */
+  public readonly cookies: CookieParamsHandler;
+
+  /**
    * Gets the raw uWebSockets.js HttpRequest object.
    */
   public get raw(): HttpRequest {
@@ -105,5 +110,6 @@ export class Request {
   constructor(private readonly req: HttpRequest, private readonly res: HttpResponse) {
     this.path = new PathParamsHandler(req);
     this.headers = new HeadersHandler(req);
+    this.cookies = new CookieParamsHandler(req);
   }
 }

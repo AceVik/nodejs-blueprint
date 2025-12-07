@@ -7,30 +7,45 @@ export type RouteRequestMethod = RequestMethod | 'ANY';
 export type Hostname = string;
 export type RouteAvailability = Hostname | Hostname[] | 'all' | 'base' | 'any';
 
-/**
- * Route openapi meta information
- */
-export type RouteMeta = {
+type RouteMetaBase = {
   /**
-   * Route openapi summary
+   * A brief summary of the route.
    */
   summary?: string;
 
   /**
-   * Route openapi description
+   * A detailed description of the route.
    */
   description?: string;
 
   /**
-   * Route openapi tags
-   */
-  tags?: string[];
-
-  /**
-   * Route is deprecated (for openapi)
+   * Indicates if the route is deprecated.
    */
   deprecated?: boolean;
 };
+
+/**
+ * Route openapi meta information.
+ * Enforces mutually exclusive usage of either `tags` (array) or `tag` (single string).
+ */
+export type RouteMeta = RouteMetaBase & (
+      | {
+      /**
+       * A list of tags associated with the route.
+       * Mutually exclusive with `tag`.
+       */
+      tags?: string[];
+      tag?: never;
+    }
+      | {
+      /**
+       * A single tag associated with the route.
+       * Mutually exclusive with `tags`.
+       */
+      tag?: string;
+      tags?: never;
+    }
+);
 
 export type RouteOptions<S extends RouteParams> = {
   /**

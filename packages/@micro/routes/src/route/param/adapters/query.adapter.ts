@@ -13,7 +13,7 @@ export function createQueryAdapter<T, AP extends AdapterType = never>(
   switch (adapterType) {
   case 'first':
   default:
-    return (function(this: RouteParam<T>, req, kind, elevate) {
+    return (function(this: RouteParam<T, 'query'>, req, kind, elevate) {
       let value: string | null;
       for (let name of this.names) {
         value = req.query.get(name);
@@ -28,7 +28,7 @@ export function createQueryAdapter<T, AP extends AdapterType = never>(
       return this.schema.parse(elevatedValue);
     }) as RouteParamAdapter<T, 'first'>;
   case 'all':
-    return (function(this: RouteParam<T, 'all'>, req, kind, elevate): T {
+    return (function(this: RouteParam<T, 'query', 'all'>, req, kind, elevate): T {
       let values: string[];
       for (let name of this.names) {
         values = req.query.getAll(name);
@@ -44,7 +44,7 @@ export function createQueryAdapter<T, AP extends AdapterType = never>(
     }) as RouteParamAdapter<T, 'all'>;
 
   case 'last':
-    return (function(this: RouteParam<T>, req, kind, elevate): T {
+    return (function(this: RouteParam<T, 'query'>, req, kind, elevate): T {
       let values: string[];
       for (let name of this.names) {
         values = req.query.getAll(name);

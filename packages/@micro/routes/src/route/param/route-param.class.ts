@@ -5,29 +5,105 @@ import type { RouteParamType } from './route-param-types.type.js';
 import type { AdapterType, RouteParamAdapter } from './adapters/index.js';
 import { getElevatorForSchema } from './get-elevator-for-schema.factory.js';
 
-/**
- * Handler function to elevate (transform) the raw parameter value.
- */
 export type ElevationHandler<T, AP extends AdapterType> =
   AP extends 'all' ? (value: string[] | null | undefined) => T : (value: string | null | undefined) => T;
 
-export type RouteParamMeta =  {
+/**
+ * Common metadata shared across all parameter types.
+ */
+type ParamMetaCommon = {
+  /**
+   * A brief description of the parameter.
+   */
   description?: string;
+
+  /**
+   * Indicates if the parameter is deprecated.
+   */
   deprecated?: boolean;
 };
+
+/**
+ * Enforces mutually exclusive usage of `example` or `examples`.
+ */
+type ParamExampleXOR =
+  | {
+  example?: unknown;
+  examples?: never;
+}
+  | {
+  examples?: Record<
+    string,
+    {
+      summary?: string;
+      description?: string;
+      value?: unknown;
+      externalValue?: string;
+    }
+  >;
+  example?: never;
+};
+
+/**
+ * Metadata specific to Path parameters.
+ * Path parameters have restricted styles and cannot be optional (handled by route logic) or have empty values.
+ */
+type PathParamMeta = ParamMetaCommon & {
+  style?: 'matrix' | 'label' | 'simple';
+  explode?: boolean;
+} & ParamExampleXOR;
+
+/**
+ * Metadata specific to Query parameters.
+ * Query parameters support the widest range of serialization styles and flags.
+ */
+type QueryParamMeta = ParamMetaCommon & {
+  style?: 'form' | 'spaceDelimited' | 'pipeDelimited' | 'deepObject';
+  explode?: boolean;
+  allowReserved?: boolean;
+  allowEmptyValue?: boolean;
+} & ParamExampleXOR;
+
+/**
+ * Metadata specific to Header parameters.
+ * Header parameters strictly use the 'simple' style.
+ */
+type HeaderParamMeta = ParamMetaCommon & {
+  style?: 'simple';
+  explode?: boolean;
+} & ParamExampleXOR;
+
+/**
+ * Metadata specific to Cookie parameters.
+ */
+type CookieParamMeta = ParamMetaCommon & {
+  style?: 'form';
+  explode?: boolean;
+} & ParamExampleXOR;
+
+/**
+ * Conditional type that selects the correct metadata shape based on the parameter type.
+ */
+export type RouteParamMeta<PT extends RouteParamType> =
+  PT extends 'path' ? PathParamMeta :
+    PT extends 'query' ? QueryParamMeta :
+      PT extends 'header' ? HeaderParamMeta :
+        PT extends 'cookie' ? CookieParamMeta :
+          (ParamMetaCommon & ParamExampleXOR); // Fallback
 
 /**
  * Represents a route parameter definition.
  * Handles reading, validating, and transforming parameter values from the request.
  *
- * @template T - The type of the parameter value.
+ * @template T - The type of the parameter value (Zod output).
+ * @template PT - The type of the parameter location (path, query, header).
  * @template AP - The adapter type ('first', 'last', 'all').
  */
-export class RouteParam<T, AP extends AdapterType = 'first'> {
+export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = 'first'> {
   /**
    * OpenApi meta information.
    */
-  public meta?: RouteParamMeta;
+  public meta?: RouteParamMeta<PT>;
 
   private _elevationHandler: ElevationHandler<T, AP> | undefined;
 
@@ -41,7 +117,7 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
    * @param readAndValidateValueHandler - The handler to read and validate the value.
    */
   constructor(
-    public readonly type: RouteParamType,
+    public readonly type: PT,
     public readonly names: string[],
     public readonly schema: ZodType<T>,
     public readonly readType: AP,
@@ -56,9 +132,11 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
 
   /**
    * Sets the openapi meta-information.
-   * @param meta
+   * The allowed properties strictly depend on the parameter type (PT).
+   *
+   * @param meta - The metadata object.
    */
-  public openapi(meta: RouteParamMeta): this {
+  public openapi(meta: RouteParamMeta<PT>): this {
     this.meta = meta;
     return this;
   }
@@ -103,6 +181,42 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
   public getRawValue(req: Request): AP extends 'all' ? string | null | undefined : (string | null | undefined)[] {
     return this.readAndValidateValueHandler(req, 'raw', this._elevationHandler) as AP extends 'all' ? string | null | undefined : (string | null | undefined)[];
   }
+
+  // --------------------------------------------------------------------------
+  // Type Guards / Predicates
+  // --------------------------------------------------------------------------
+
+  /**
+   * Checks if this parameter is a Path parameter.
+   * Narrows the type of `this` to `RouteParam<T, 'path', AP>`.
+   */
+  public isPath(): this is RouteParam<T, 'path', AP> {
+    return this.type === 'path';
+  }
+
+  /**
+   * Checks if this parameter is a Query parameter.
+   * Narrows the type of `this` to `RouteParam<T, 'query', AP>`.
+   */
+  public isQuery(): this is RouteParam<T, 'query', AP> {
+    return this.type === 'query';
+  }
+
+  /**
+   * Checks if this parameter is a Header parameter.
+   * Narrows the type of `this` to `RouteParam<T, 'header', AP>`.
+   */
+  public isHeader(): this is RouteParam<T, 'header', AP> {
+    return this.type === 'header';
+  }
+
+  /**
+   * Checks if this parameter is a Cookie parameter.
+   * Narrows the type of `this` to `RouteParam<T, 'cookie', AP>`.
+   */
+  public isCookie(): this is RouteParam<T, 'cookie', AP> {
+    return this.type === 'cookie';
+  }
 }
 
 /**
@@ -115,12 +229,12 @@ export class RouteParam<T, AP extends AdapterType = 'first'> {
  * @param handler - The adapter handler.
  * @returns A new RouteParam instance.
  */
-export function createRouteParam<T, AP extends AdapterType = 'first'>(
-  type: RouteParamType,
+export function createRouteParam<T, PT extends RouteParamType, AP extends AdapterType = 'first'>(
+  type: PT,
   names: string[],
   schema: ZodType<T>,
   readType: AP,
   handler: RouteParamAdapter<T>,
-): RouteParam<T, AP> {
-  return new RouteParam<T, AP>(type, names, schema, readType, handler);
+): RouteParam<T, PT, AP> {
+  return new RouteParam<T, PT, AP>(type, names, schema, readType, handler);
 }

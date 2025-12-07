@@ -13,7 +13,7 @@ export function createPathAdapter<T>(
 ): RouteParamAdapter<T> {
   switch (adapterType) {
   case 'all':
-    return (function (this: RouteParam<T>, req: Request, kind, elevate): T {
+    return (function (this: RouteParam<T, 'path'>, req: Request, kind, elevate): T {
       let value: string | null;
       for (let name of this.names) {
         value = req.path.get(name);
@@ -31,7 +31,7 @@ export function createPathAdapter<T>(
     }) as RouteParamAdapter<T, 'all'>;
 
   default:
-    return (function (this: RouteParam<T>, req: Request, kind, elevate): T {
+    return (function (this: RouteParam<T, 'path'>, req: Request, kind, elevate): T {
       let value: string | null;
       for (let name of this.names) {
         value = req.path.get(name);

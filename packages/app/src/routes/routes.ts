@@ -1,13 +1,18 @@
-import { route, allFromQuery, fromHeader, fromQuery } from '@micro/routes';
+import { route, allFromQuery, fromHeader, fromQuery, fromCookie } from '@micro/routes';
 import { z } from 'zod';
 
 export const getStuff = route({
   params: {
-    test: allFromQuery(z.array(z.number())),
     test2: fromQuery(z.string().min(3)),
     test3: fromQuery(z.boolean()),
-    testAbc: fromQuery(z.string().optional()).openapi({ description: 'Test optional query param', deprecated: true }),
-    userAgent: fromHeader(z.string()),
+    test: allFromQuery(z.array(z.number())),
+    testAbc: fromQuery(z.string().optional()).openapi({ description: 'Test optional query param', deprecated: true, style: 'spaceDelimited' }),
+    cook: fromCookie(z.string().optional()).openapi({
+      style: 'form',
+    }),
+    userAgent: fromHeader(z.string()).openapi({
+      style: 'simple',
+    }),
   },
   // Gives middlewares and order executed before handler
   /*
@@ -35,11 +40,11 @@ export const getStuff = route({
     test: params.test,
     test2: params.test2,
     test3: params.test3,
-    testAbc: testAbcSchema.description || 'sggfgdgfg',
     userAgentFromParams: params.userAgent,
     routeName: app.routes[0].name,
     routePath: app.routes[0].path,
   }));
 }).openapi({
-
+  tags: ['Example'],
+  description: 'Test route',
 });
