@@ -5,8 +5,11 @@ import type { RouteParamType } from './route-param-types.type.js';
 import type { AdapterType, RouteParamAdapter } from './adapters/index.js';
 import { getElevatorForSchema } from './get-elevator-for-schema.factory.js';
 
+// Elevation input depends on adapter type:
+// - 'all' adapters always provide an array (possibly empty)
+// - 'first' / 'last' provide a single value or null
 export type ElevationHandler<T, AP extends AdapterType> =
-  AP extends 'all' ? (value: string[] | null | undefined) => T : (value: string | null | undefined) => T;
+  AP extends 'all' ? (value: string[]) => T : (value: string | null) => T;
 
 /**
  * Common metadata shared across all parameter types.
@@ -178,8 +181,8 @@ export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = '
    * @param req - The request object.
    * @returns The raw value (string or array of strings).
    */
-  public getRawValue(req: Request): AP extends 'all' ? string | null | undefined : (string | null | undefined)[] {
-    return this.readAndValidateValueHandler(req, 'raw', this._elevationHandler) as AP extends 'all' ? string | null | undefined : (string | null | undefined)[];
+  public getRawValue(req: Request): AP extends 'all' ? string[] : (string | null) {
+    return this.readAndValidateValueHandler(req, 'raw', this._elevationHandler) as AP extends 'all' ? string[] : (string | null);
   }
 
   // --------------------------------------------------------------------------

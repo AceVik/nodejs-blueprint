@@ -7,12 +7,7 @@ export const getStuff = route({
     test3: fromQuery(z.boolean()),
     test: allFromQuery(z.array(z.number())),
     testAbc: fromQuery(z.string().optional()).openapi({ description: 'Test optional query param', deprecated: true, style: 'spaceDelimited' }),
-    cook: fromCookie(z.string().optional()).openapi({
-      style: 'form',
-    }),
-    userAgent: fromHeader(z.string()).openapi({
-      style: 'simple',
-    }),
+    userAgent: fromHeader(z.string()),
   },
   // Gives middlewares and order executed before handler
   /*
