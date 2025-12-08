@@ -5,12 +5,17 @@
     "packages/**"
   ],
   "scripts": {
-    "dev": "pnpm --filter app dev",
-    "build": "pnpm --filter app build",
-    "build:micro": "pnpm --filter @micro/routes build",
-    "lint": "pnpm --filter app lint",
-    "test": "pnpm --filter app test",
-    "test:micro": "pnpm --filter @micro/routes-tests test"
+    "dev": "npm run -w app dev",
+    "start": "npm run -w app start",
+    "routes": "npm run -w app routes",
+    "build": "npm run -w app build",
+    "build:micro": "npm run -w @micro\/routes build",
+    "lint": "npm run -w app lint",
+    "test": "npm run -w app test",
+    "test:micro": "npm run -w @micro\/routes-tests test",
+    "build:all": "npm run -ws build",
+    "test:all": "npm run -ws test",
+    "lint:all": "npm run -ws lint"
   },
   "dependencies": {
     "zod": "^4.1.13"
@@ -23,5 +28,6 @@
     "tsc-alias": "^1.8.16",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
-  }
+  },
+  "packageManager": "npm@10.9.0"
 }

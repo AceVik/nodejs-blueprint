@@ -15,6 +15,6 @@
     "zod": "^4.1.13"
   },
   "dependencies": {
-    "@micro/routes": "workspace:*"
+    "@micro/routes": "^1.0.0"
   }
 }

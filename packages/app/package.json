@@ -16,7 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@micro/routes": "workspace:*",
+    "@micro/routes": "^1.0.0",
     "@asteasolutions/zod-to-openapi": "^8.2.0"
   },
   "devDependencies": {
