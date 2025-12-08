@@ -1,6 +1,7 @@
 import type { RequestMethod } from '../http/index.js';
 import type { RouteParams } from './param/route-params.type.js';
 import type { ErrorMiddleware } from '../middleware/index.js';
+import type { PhaseConfig } from '../middleware/normal/middlewares.factory.js';
 
 export type RouteRequestMethod = RequestMethod | 'ANY';
 
@@ -71,4 +72,16 @@ export type RouteOptions<S extends RouteParams> = {
    * Route error middlewares.
    */
   errorMiddlewares?: Record<string, ErrorMiddleware>;
+
+  /**
+   * Normal middlewares executed before the handler.
+   * Supports array short form or object form with inherit/omit/use.
+   */
+  before?: PhaseConfig;
+
+  /**
+   * Normal middlewares executed after the handler.
+   * Supports array short form or object form with inherit/omit/use.
+   */
+  after?: PhaseConfig;
 };
