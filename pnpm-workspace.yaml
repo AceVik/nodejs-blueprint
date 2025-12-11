@@ -1,5 +1,0 @@
-packages:
-  - packages/*
-  - packages/@micro/*
-onlyBuiltDependencies:
-  - esbuild

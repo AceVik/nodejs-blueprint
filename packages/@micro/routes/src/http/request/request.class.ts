@@ -1,14 +1,18 @@
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
 import type { QueryParamsHandler, RequestMethod } from '../../http/index.js';
 import { CookieParamsHandler, HeadersHandler, PathParamsHandler } from './handlers/index.js';
+import type { InterceptorContextRegistry } from '../interceptors/index.js';
 
 const dec = new TextDecoder('ascii');
 
 /**
  * Wrapper around the uWebSockets.js HttpRequest and HttpResponse.
- * Provides convenient access to request properties like URL, method, headers, and query parameters.
+ * Provides convenient access to request properties like URL, method, headers, query and cookie parameters.
  */
 export class Request {
+
+  public readonly context: InterceptorContextRegistry = new Map();
+
   private _url: string | null = null;
 
   /**

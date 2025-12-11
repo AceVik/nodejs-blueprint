@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -10,13 +11,18 @@
     "paths": {
       "@tests/*": [
         "*"
-      ]
+      ],
+      "@micro/routes": ["../@micro/routes/src/index.ts"],
+      "@micro/routes/*": ["../@micro/routes/src/*"]
     },
     "types": [
       "node",
       "vitest/globals"
     ]
   },
+  "references": [
+    { "path": "../@micro/routes" }
+  ],
   "include": [
     "tests/**/*"
   ],

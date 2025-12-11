@@ -1,0 +1,124 @@
+import type { ZodType } from 'zod';
+import type { Request, Response } from '../http/index.js';
+import type { Route } from '../route/index.js';
+import {
+  type RequestInterceptor,
+  type ResponseInterceptor,
+} from '../http/interceptors/index.js';
+import { createInterceptorTools } from '../http/interceptors/interceptors.utils.js';
+
+/**
+ * Executes the chain of Request Interceptors (Before) and the Route Handler.
+ * Uses a recursive dispatch mechanism (Onion Model).
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param route - The route definition.
+ * @param interceptors - The stack of request interceptors.
+ * @param handler - The actual route handler function.
+ * @returns The result returned by the route handler.
+ */
+async function runRequestPhase(
+  req: Request,
+  res: Response,
+  route: Route<never>,
+  interceptors: RequestInterceptor<ZodType>[],
+  handler: () => Promise<unknown>,
+): Promise<unknown> {
+  let handlerResult: unknown;
+  let handlerExecuted = false;
+
+  const dispatch = async (index: number): Promise<void> => {
+    if (index >= interceptors.length) {
+      handlerResult = await handler();
+      handlerExecuted = true;
+      return;
+    }
+
+    const interceptor = interceptors[index]!;
+    const tools = createInterceptorTools(req, interceptor);
+
+    await interceptor.intercept({
+      req,
+      res,
+      route,
+      ...tools,
+      next: () => dispatch(index + 1),
+    });
+  };
+
+  await dispatch(0);
+
+  if (!handlerExecuted) {
+    throw new Error('Route handler was not executed. Did a RequestInterceptor forget to call next()?');
+  }
+
+  return handlerResult;
+}
+
+/**
+ * Executes the chain of Response Interceptors (After).
+ * Uses a pipeline model where the result of one interceptor is passed to the next.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param route - The route definition.
+ * @param interceptors - The stack of response interceptors.
+ * @param initialResult - The result returned by the request phase.
+ * @returns The final transformed result.
+ */
+async function runResponsePhase(
+  req: Request,
+  res: Response,
+  route: Route<never>,
+  interceptors: ResponseInterceptor<ZodType>[],
+  initialResult: unknown,
+): Promise<unknown> {
+  let result = initialResult;
+
+  for (const interceptor of interceptors) {
+    const tools = createInterceptorTools(req, interceptor);
+
+    result = await interceptor.intercept({
+      req,
+      res,
+      route,
+      result,
+      ...tools,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Orchestrates the full lifecycle of a request: Request Interceptors -> Handler -> Response Interceptors.
+ *
+ * @param req - The request object.
+ * @param res - The response object.
+ * @param route - The route definition.
+ * @param coreHandler - The wrapped route handler.
+ * @returns The final result to be sent to the client.
+ */
+export async function executeRoute(
+  req: Request,
+  res: Response,
+  route: Route<never>,
+  coreHandler: () => Promise<unknown>,
+): Promise<unknown> {
+  const rawResult = await runRequestPhase(
+    req,
+    res,
+    route,
+    route.beforeInterceptors as RequestInterceptor<ZodType>[],
+    coreHandler,
+  );
+
+  return runResponsePhase(
+    req,
+    res,
+    route,
+    route.afterInterceptors as ResponseInterceptor<ZodType>[],
+    rawResult,
+  );
+}

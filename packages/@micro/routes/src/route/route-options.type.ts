@@ -1,11 +1,20 @@
+import type { ZodType, ZodVoid } from 'zod';
 import type { RequestMethod } from '../http/index.js';
 import type { RouteParams } from './param/route-params.type.js';
 import type { ErrorMiddleware } from '../middleware/index.js';
-import type { PhaseConfig } from '../middleware/normal/middlewares.factory.js';
+import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
 
+/**
+ * Defines the allowed HTTP methods for a route.
+ * 'ANY' acts as a wildcard.
+ */
 export type RouteRequestMethod = RequestMethod | 'ANY';
 
 export type Hostname = string;
+
+/**
+ * Defines the availability of a route based on hostnames.
+ */
 export type RouteAvailability = Hostname | Hostname[] | 'all' | 'base' | 'any';
 
 type RouteMetaBase = {
@@ -30,25 +39,31 @@ type RouteMetaBase = {
  * Enforces mutually exclusive usage of either `tags` (array) or `tag` (single string).
  */
 export type RouteMeta = RouteMetaBase & (
-      | {
-      /**
-       * A list of tags associated with the route.
-       * Mutually exclusive with `tag`.
-       */
-      tags?: string[];
-      tag?: never;
-    }
-      | {
-      /**
-       * A single tag associated with the route.
-       * Mutually exclusive with `tags`.
-       */
-      tag?: string;
-      tags?: never;
-    }
-);
+  | {
+  /**
+   * A list of tags associated with the route.
+   * Mutually exclusive with `tag`.
+   */
+  tags?: string[];
+  tag?: never;
+}
+  | {
+  /**
+   * A single tag associated with the route.
+   * Mutually exclusive with `tags`.
+   */
+  tag?: string;
+  tags?: never;
+}
+  );
 
-export type RouteOptions<S extends RouteParams> = {
+/**
+ * Configuration options for creating a route.
+ *
+ * @template S - The shape of the route parameters.
+ * @template R - The Zod schema for the response output.
+ */
+export type RouteOptions<S extends RouteParams, R extends ZodType = ZodVoid> = {
   /**
    * Available for domains.
    * 'all': available for all given domains.
@@ -58,13 +73,14 @@ export type RouteOptions<S extends RouteParams> = {
   for?: RouteAvailability;
 
   /**
-   * Request method
-   * auto set bei router/importRoutes if not set
+   * Request method.
+   * Auto set by router/importRoutes if not set.
    */
   method?: RouteRequestMethod;
 
   /**
-   * Route params (path, query, headers, ... - is used for openapi documentation also)
+   * Route params (path, query, headers, cookies).
+   * Used for runtime validation and OpenAPI documentation.
    */
   params?: S;
 
@@ -74,14 +90,14 @@ export type RouteOptions<S extends RouteParams> = {
   errorMiddlewares?: Record<string, ErrorMiddleware>;
 
   /**
-   * Normal middlewares executed before the handler.
-   * Supports array short form or object form with inherit/omit/use.
+   * Interceptors to use for this route.
+   * Executed in order: Request Interceptors -> Handler -> Response Interceptors.
+   * Supports 'omit(interceptor)' to exclude global interceptors.
    */
-  before?: PhaseConfig;
+  use?: RouteInterceptorDefinitions;
 
   /**
-   * Normal middlewares executed after the handler.
-   * Supports array short form or object form with inherit/omit/use.
+   * Optional Zod schema to validate and type the response output.
    */
-  after?: PhaseConfig;
+  output?: R;
 };

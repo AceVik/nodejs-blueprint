@@ -9,6 +9,7 @@ let nextErrorMiddlewareId = 0;
  *
  * @param responses - Map of HTTP status codes to Zod schemas describing the error responses.
  * @param handler - The function to handle the error.
+ * @deprecated
  */
 export function errorMiddleware(
   responses: ErrorResponseSchemas,
@@ -21,6 +22,8 @@ export function errorMiddleware(
  * @param name - Unique name or symbol to identify/override this middleware.
  * @param responses - Map of HTTP status codes to Zod schemas describing the error responses.
  * @param handler - The function to handle the error.
+ * @deprecated
+ *
  */
 export function errorMiddleware(
   name: string | symbol,
@@ -30,6 +33,7 @@ export function errorMiddleware(
 
 /**
  * Implementation
+ * @deprecated
  */
 export function errorMiddleware(
   arg1: string | symbol | ErrorResponseSchemas,

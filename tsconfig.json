@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/@micro/routes" },
+    { "path": "packages/app" },
+    { "path": "packages/@micro/routes-tests" }
+  ]
+}

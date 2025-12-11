@@ -5,12 +5,15 @@
     "moduleResolution": "NodeNext",
     "lib": ["ESNext"],
     "esModuleInterop": true,
+    "composite": true,
     "types": ["node"],
     "baseUrl": ".",
     "rootDir": "./src",
     "outDir": "lib",
     "declaration": true,
     "declarationMap": true,
+    "sourceMap": true,
+    "inlineSources": true,
     "removeComments": true,
 
     // Strictness

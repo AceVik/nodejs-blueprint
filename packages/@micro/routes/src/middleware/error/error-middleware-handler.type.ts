@@ -1,3 +1,7 @@
 import type { MiddlewareHandlerArgs } from '../middleware.types.js';
+import { Awaitable } from '../../types/index.js';
 
-export type ErrorMiddlewareHandler = (error: unknown, args: MiddlewareHandlerArgs) => void | Promise<void>;
+/**
+ * @deprecated
+ */
+export type ErrorMiddlewareHandler = (error: unknown, args: MiddlewareHandlerArgs) => Awaitable<void>;

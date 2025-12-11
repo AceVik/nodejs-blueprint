@@ -2,6 +2,9 @@ import { join } from 'node:path';
 import { tryImport } from '../../utils/try-import.util.js';
 import { ErrorMiddleware } from './error-middleware.class.js';
 
+/**
+ * @deprecated
+ */
 export const importErrorMiddlewares = async (middlewaresPath: string): Promise<Record<string, ErrorMiddleware>> => {
   const [tsImports] = await Promise.all([
     tryImport(join(middlewaresPath, 'error.middlewares.ts')),

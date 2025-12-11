@@ -40,6 +40,7 @@ const filterEntries = (entry: Dirent) => entry.isDirectory() && !entry.name.star
  * Prioritizes 'src/middlewares' and 'middlewares' in the root.
  *
  * @returns A promise that resolves to the absolute path of the middlewares folder, or null if not found.
+ * @deprecated
  */
 export async function findMiddlewaresFolder(): Promise<string | null> {
   const cwd = process.cwd();

@@ -6,6 +6,7 @@
   ],
   "scripts": {
     "dev": "npm run -w app dev",
+    "dev:inspect": "npm run -w app dev:inspect",
     "start": "npm run -w app start",
     "routes": "npm run -w app routes",
     "build": "npm run -w app build",
@@ -15,7 +16,9 @@
     "test:micro": "npm run -w @micro\/routes-tests test",
     "build:all": "npm run -ws build",
     "test:all": "npm run -ws test",
-    "lint:all": "npm run -ws lint"
+    "lint:all": "npm run -ws lint",
+    "types:build": "tsc -b",
+    "types:watch": "tsc -b -w --preserveWatchOutput"
   },
   "dependencies": {
     "zod": "^4.1.13"

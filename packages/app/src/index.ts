@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { createRoutesApp } from '@micro/routes';
 import { findRoutesFolder, importRoutes } from '@micro/routes/router';
+import { findMiddlewaresFolder } from '@micro/routes/middleware';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,6 +15,11 @@ const port = parseInt(process.env.PORT || '3443', 10);
     key_file_name: resolve(__dirname, '..', 'certs', 'server.key'),
     cert_file_name: resolve(__dirname, '..', 'certs', 'server.crt'),
   });
+
+  const middlewaresPath = await findMiddlewaresFolder();
+  if (middlewaresPath) {
+
+  }
 
   const routesPath = await findRoutesFolder();
   if (routesPath) {

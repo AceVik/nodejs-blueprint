@@ -15,6 +15,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "dev": "tsc -w --preserveWatchOutput",
     "prepublishOnly": "npm run build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

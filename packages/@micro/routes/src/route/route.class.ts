@@ -1,21 +1,22 @@
-import { ZodError } from 'zod';
-import type { Request, Response } from '../http/index.js';
+import { ZodError, type ZodType, type ZodVoid } from 'zod';
+import { type Request, type Response, BadRequestError } from '../http/index.js';
 import type { RouteHandler, RouteHandlerArgs } from './route-handler.type.js';
 import type { RouteParams, RouteParamValues } from './param/route-params.type.js';
-import {
-  BadRequestError,
-} from '../http/index.js';
-import { RoutesApp } from '../server/index.js';
-import { type RouteAvailability, RouteMeta, type RouteRequestMethod } from './route-options.type.js';
-import { type HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
+import type { RoutesApp } from '../server/index.js';
+import type { RouteAvailability, RouteRequestMethod } from './route-options.type.js';
+import type { HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
+import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
+import type { RequestInterceptor, ResponseInterceptor } from '../http/interceptors/index.js';
+import { OpenApiBase } from '../openapi/openapi-base.class.js';
 
 /**
  * Represents a defined route within the application.
- * Handles request execution, parameter extraction, and validation.
+ * Acts as a container for route configuration, parameter definitions, and interceptor stacks.
  *
  * @template S - The shape of the route parameters.
+ * @template R - The Zod schema for the response output (optional).
  */
-export class Route<S extends RouteParams> {
+export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends OpenApiBase {
   /**
    * The function to execute when this route is matched.
    */
@@ -26,6 +27,22 @@ export class Route<S extends RouteParams> {
    */
   private readonly paramKeys: string[];
 
+  /**
+   * The stack of request interceptors (Before) configured for this route.
+   * This is managed by the RoutesApp and will be filled on listener start.
+   */
+  public beforeInterceptors: RequestInterceptor[] = [];
+
+  /**
+   * The stack of response interceptors (After) configured for this route.
+   * This is managed by the RoutesApp and will be filled on listener start.
+   */
+  public afterInterceptors: ResponseInterceptor[] = [];
+
+  /**
+   * Optional schema to validate and type the handler's return value.
+   */
+  public readonly output?: R;
 
   /**
    * Creates a new Route instance.
@@ -36,6 +53,8 @@ export class Route<S extends RouteParams> {
    * @param handler - The handler function to execute.
    * @param hostnames - The hostnames this route is available on.
    * @param params - Optional parameter definitions for validation and extraction.
+   * @param interceptors - Optional list of interceptors (or omits) specific to this route.
+   * @param output - Optional Zod schema for the response.
    */
   constructor(
     public readonly name: string,
@@ -44,35 +63,13 @@ export class Route<S extends RouteParams> {
     handler: RouteHandler<S>,
     public readonly hostnames: RouteAvailability,
     public readonly params?: S,
+    public readonly interceptors?: RouteInterceptorDefinitions,
+    output?: R,
   ) {
+    super();
     this.exec = handler;
-    // Cache keys for performance (params are static per route)
+    this.output = output;
     this.paramKeys = this.params ? Object.keys(this.params) : [];
-
-  }
-
-  /**
-   * Sets the openapi meta information.
-   * @param meta
-   */
-  public openapi(meta: RouteMeta) : this {
-    // Define as non-enumerable to avoid leaking into snapshots
-    if (!Object.prototype.hasOwnProperty.call(this, '_meta')) {
-      Object.defineProperty(this as unknown as Record<string, unknown>, '_meta', {
-        value: meta,
-        writable: true,
-        configurable: true,
-        enumerable: false,
-      });
-    } else {
-      (this as unknown as Record<string, unknown>)['_meta'] = meta;
-    }
-    return this;
-  }
-
-  /** Returns the OpenAPI meta info for this route (if any). */
-  public get meta(): Readonly<RouteMeta> | undefined {
-    return (this as unknown as Record<string, unknown>)['_meta'] as RouteMeta | undefined;
   }
 
   /**
@@ -123,17 +120,20 @@ export class Route<S extends RouteParams> {
   }
 
   /**
-   * Handles an incoming request.
-   * Optimized for performance by minimizing per-request overhead.
+   * Executes the route logic.
+   * This method extracts parameters, validates them, and runs the handler.
+   * It does NOT handle interceptors or sending the response; that is the responsibility of the caller (Route Manager).
    *
    * @param req - The request object.
    * @param res - The response object.
    * @param app - The application instance.
    * @param onAborted - Callback to register an abortion handler.
+   * @returns The raw result returned by the handler (to be processed by Response Interceptors).
    * @throws {BadRequestError} If parameter validation fails.
    */
-  public async handleRequest(req: Request, res: Response, app: RoutesApp, onAborted: (handler: () => void) => void): Promise<void> {
+  public async handleRequest(req: Request, res: Response, app: RoutesApp, onAborted: (handler: () => void) => void): Promise<unknown> {
     const { params, errors: paramErrors } = this.extractParams(req);
+
     if (paramErrors.length > 0) {
       throw new BadRequestError('Invalid request parameters', paramErrors as HttpErrorErrors);
     }
@@ -146,7 +146,6 @@ export class Route<S extends RouteParams> {
       params,
     };
 
-    await this.exec(routeHandlerArgs);
+    return this.exec(routeHandlerArgs);
   }
-
 }

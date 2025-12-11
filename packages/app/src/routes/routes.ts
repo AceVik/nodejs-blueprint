@@ -1,6 +1,15 @@
 import { route, allFromQuery, fromHeader, fromQuery, fromCookie } from '@micro/routes';
 import { z } from 'zod';
 
+export const getData = route({
+  use: [isAdmin, otherInterceptors, omit(unwantedInterceptor)],
+  params: {
+
+  },
+}, async () => {
+
+});
+
 export const getStuff = route({
   params: {
     test2: fromQuery(z.string().min(3)),

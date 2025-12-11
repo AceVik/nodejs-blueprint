@@ -1,9 +1,19 @@
 import type { Request, Response } from '../http/index.js';
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
 import type { Route } from '../route/index.js';
+import { Awaitable } from '../types/index.js';
 
+/**
+ * @deprecated
+ */
 export type NextParams = Record<string, unknown>;
-export type NextFunction = (params?: NextParams) => void;
+/**
+ * @deprecated
+ */
+export type NextFunction = (params?: NextParams) => Awaitable<void>;
+/**
+ * @deprecated
+ */
 export type MiddlewareHandlerArgs = {
   req?: Request | undefined,
   res?: Response | undefined,
@@ -14,4 +24,7 @@ export type MiddlewareHandlerArgs = {
   prevParams?: NextParams | undefined;
 };
 
-export type MiddlewareHandler = (args: MiddlewareHandlerArgs) => void | Promise<void>;
+/**
+ * @deprecated
+ */
+export type MiddlewareHandler = (args: MiddlewareHandlerArgs) => Awaitable<void>;

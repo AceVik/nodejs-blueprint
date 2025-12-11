@@ -1,4 +1,3 @@
-import type { CreateRoutesAppOptions } from './create-routes-app-params.type.js';
 import {
   type HttpRequest,
   type HttpResponse,
@@ -6,60 +5,46 @@ import {
   type us_listen_socket,
   App,
   SSLApp,
-  TemplatedApp, type AppOptions,
+  TemplatedApp,
+  type AppOptions,
 } from 'uWebSockets.js';
+import type { CreateRoutesAppOptions } from './create-routes-app-params.type.js';
 import { type Hostname, Route } from '../route/index.js';
-import { ErrorMiddleware, type MiddlewareHandlerArgs, type NextFunction, type NextParams } from '../middleware/index.js';
+import { ErrorMiddleware, type NextFunction, type NextParams } from '../middleware/index.js';
 import { httpErrorMiddleware, serverErrorMiddleware } from '../middleware/error/presets/index.js';
 import { Request, Response } from '../http/index.js';
 import { HTTP_ERROR_MIDDLEWARE, SERVER_ERROR_MIDDLEWARE } from '../middleware/index.js';
 import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
-import { OpenApiGenerator } from './openapi/openapi-generator.js';
+import { OpenApiGenerator } from '../openapi/openapi-generator.js';
+import { registerRouteWithApp } from './register-route.util.js';
+import type { ZodType } from 'zod';
+import {
+  type Interceptor,
+  isRequestInterceptor,
+  isResponseInterceptor,
+  type RequestInterceptor,
+  type ResponseInterceptor,
+} from '../http/interceptors/index.js';
+import { mergeInterceptors } from '../http/interceptors/interceptors.utils.js';
+import { isOmitted } from '../http/interceptors/omit.js';
+import type { RouteInterceptorDefinition } from '../route/route-interceptors.type.js';
+import { executeRoute } from './route-executor.js';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
-type RawRouteHandler = (res: HttpResponse, req: HttpRequest) => void | Promise<void>;
 
 /**
- * Registers a route handler with the underlying uWebSockets.js app.
- *
- * @param app - The uWebSockets.js app instance.
- * @param route - The route definition.
- * @param handler - The handler function.
- */
-function registerRoute(app: TemplatedApp, route: Route<never>, handler: RawRouteHandler) {
-  switch (route.method) {
-  case 'GET':
-    return app.get(route.path, handler);
-  case 'POST':
-    return app.post(route.path, handler);
-  case 'PUT':
-    return app.put(route.path, handler);
-  case 'DELETE':
-    return app.del(route.path, handler);
-  case 'PATCH':
-    return app.patch(route.path, handler);
-  case 'OPTIONS':
-    return app.options(route.path, handler);
-  case 'HEAD':
-    return app.head(route.path, handler);
-  case 'TRACE':
-    return app.trace(route.path, handler);
-  case 'CONNECT':
-    return app.connect(route.path, handler);
-  case 'ANY':
-    return app.any(route.path, handler);
-  }
-}
-
-/**
- * The main application class for managing routes and the server.
- * Wraps uWebSockets.js to provide a more structured routing and middleware system.
+ * The main application class for managing routes, interceptors, and the server.
+ * Wraps uWebSockets.js to provide a structured architecture with Type-Safe Interceptors.
  */
 export class RoutesApp {
   private readonly rawApp: TemplatedApp;
 
   private _serverNames: Hostname[] = [];
   private _routes: Route<never>[] = [];
+
+  private _globalRequestInterceptors: RequestInterceptor<ZodType>[] = [];
+  private _globalResponseInterceptors: ResponseInterceptor<ZodType>[] = [];
+
   private _errorMiddlewares: Record<string | symbol, ErrorMiddleware> = {
     [HTTP_ERROR_MIDDLEWARE]: httpErrorMiddleware,
     [SERVER_ERROR_MIDDLEWARE]: serverErrorMiddleware,
@@ -69,23 +54,14 @@ export class RoutesApp {
     SERVER_ERROR_MIDDLEWARE,
   ];
 
-  /**
-   * Gets the list of registered server names (hostnames).
-   */
   public get serverNames(): readonly Hostname[] {
     return this._serverNames;
   }
 
-  /**
-   * Gets the list of registered routes.
-   */
   public get routes(): readonly Route<never>[] {
     return this._routes;
   }
 
-  /**
-   * Gets the registered error middlewares.
-   */
   public get errorMiddlewares() {
     return this._errorMiddlewares;
   }
@@ -118,7 +94,6 @@ export class RoutesApp {
       this._serverNames.push(hostname);
       this.rawApp.addServerName(hostname, options || {});
     }
-
     return this;
   }
 
@@ -129,49 +104,67 @@ export class RoutesApp {
    * @returns The RoutesApp instance for chaining.
    */
   public removeServerName(hostname: Hostname): RoutesApp {
-    let idx;
-    if ((idx = this.serverNames.indexOf(hostname)) >= 0) {
+    const idx = this.serverNames.indexOf(hostname);
+    if (idx >= 0) {
       this._serverNames.splice(idx, 1);
       this.rawApp.removeServerName(hostname);
     }
-
     return this;
   }
 
   /**
-   * Executes the error middleware chain.
-   * Optimized to avoid creating closures inside the loop.
+   * Registers interceptors, error middlewares, or routes with the application.
+   * Automatically sorts interceptors into Request or Response stacks.
    *
-   * @param error - The error that occurred.
-   * @param args - The arguments for the error middleware.
+   * @param items - The interceptors, error middlewares, or routes to register.
+   * @returns The RoutesApp instance for chaining.
    */
-  private async runErrorMiddlewares(error: unknown, args: Omit<MiddlewareHandlerArgs, 'next'>) {
-    const middlewareNames = this._errorMiddlewaresOrder;
-    let index = 0;
-    const next: NextFunction = async (params?: NextParams) => {
-      if (index < middlewareNames.length) {
-        const name = middlewareNames[index++];
-        const currentMiddleware = this.errorMiddlewares[name!];
-        if (currentMiddleware) {
-          await currentMiddleware.handleError(error, { ...args, prevParams: params, next });
-        } else {
-          // Skip if middleware is missing (defensive programming)
-          await next(params);
-        }
+  public use(...items: (Interceptor<ZodType> | ErrorMiddleware | Route<never>)[]): this {
+    for (const item of items) {
+      if (item instanceof Route) {
+        this.addRoute(item);
+      } else if (item instanceof ErrorMiddleware) {
+        this.addErrorMiddleware(item);
+      } else if (isRequestInterceptor(item)) {
+        this._globalRequestInterceptors.push(item);
+      } else if (isResponseInterceptor(item)) {
+        this._globalResponseInterceptors.push(item);
       }
-    };
-
-    await next();
+    }
+    return this;
   }
 
-  /**
-   * Creates a raw route handler for uWebSockets.js.
-   *
-   * @param route - The route to handle.
-   * @returns A function that handles the raw request and response.
-   */
+  private addErrorMiddleware(emw: ErrorMiddleware) {
+    if (emw.name in this._errorMiddlewares) {
+      this._errorMiddlewaresOrder.splice(this._errorMiddlewaresOrder.indexOf(emw.name), 1);
+    }
+    this._errorMiddlewares[emw.name] = emw;
+    this._errorMiddlewaresOrder = [emw.name, ...this._errorMiddlewaresOrder];
+  }
+
+  private addRoute(route: Route<never>) {
+    this._routes.push(route);
+    const routeHandler = this.createRouteHandler(route);
+
+    if (route.hostnames === 'any' || route.hostnames === 'base') {
+      registerRouteWithApp(this.rawApp, route, routeHandler);
+      if (route.hostnames === 'base') return;
+    }
+
+    if (route.hostnames === 'any' || route.hostnames === 'all') {
+      for (const hostname of this.serverNames) {
+        registerRouteWithApp(this.rawApp.domain(hostname), route, routeHandler);
+      }
+      return;
+    }
+
+    const hostnames = Array.isArray(route.hostnames) ? route.hostnames : [route.hostnames];
+    for (const hostname of hostnames) {
+      registerRouteWithApp(this.rawApp.domain(hostname), route, routeHandler);
+    }
+  }
+
   private createRouteHandler(route: Route<never>) {
-    // Bind 'this' once to avoid repeated binding in the closure
     const self = this;
 
     return async function (rawRes: HttpResponse, rawReq: HttpRequest) {
@@ -182,79 +175,92 @@ export class RoutesApp {
         let onAbortedHandler: (() => void) | undefined;
 
         rawRes.onAborted(() => {
-          if (onAbortedHandler) {
-            onAbortedHandler();
-          }
-          // Ensure resources are cleaned up if needed, though uWS handles socket closure
+          if (onAbortedHandler) onAbortedHandler();
         });
 
         req = new Request(rawReq, rawRes);
         res = new Response(rawRes, rawReq);
 
-        await route.handleRequest(req, res, self, (handler) => {
-          onAbortedHandler = handler;
-        });
+        const coreHandler = async () => {
+          return await route.handleRequest(req, res, self, (handler) => {
+            onAbortedHandler = handler;
+          });
+        };
+
+        const finalResult = await executeRoute(req, res, route, coreHandler);
+
+        if (finalResult !== undefined && !res.done && !res.aborted) {
+          if (typeof finalResult === 'object') {
+            res.json(finalResult);
+          } else {
+            res.send(String(finalResult));
+          }
+        }
+
       } catch (err: unknown) {
         await self.runErrorMiddlewares(err, {
           route,
           rawRes,
           rawReq,
-          // @ts-expect-error TS2454: Variable res is used before being assigned.
+          // @ts-expect-error TS2454: Legacy error handler support
           res, req,
         });
       }
     };
   }
 
-  /**
-   * Adds a route to the application and registers it with uWebSockets.js.
-   *
-   * @param route - The route to add.
-   */
-  private addRoute(route: Route<never>) {
-    this._routes.push(route);
-    const routeHandler = this.createRouteHandler(route);
+  private _interceptorsArePrecalculated = false;
 
-    if (route.hostnames === 'any' || route.hostnames === 'base') {
-      registerRoute(this.rawApp, route, routeHandler);
-      if (route.hostnames === 'base') return;
-    }
+  private precalculateInterceptors() {
+    if (this._interceptorsArePrecalculated) return;
 
-    if (route.hostnames === 'any' || route.hostnames === 'all') {
-      for (const hostname of this.serverNames) {
-        registerRoute(this.rawApp.domain(hostname), route, routeHandler);
+    for (const route of this._routes) {
+      const localDefs = route.interceptors || [];
+
+      const localRequestDefs: RouteInterceptorDefinition[] = [];
+      const localResponseDefs: RouteInterceptorDefinition[] = [];
+
+      for (const def of localDefs) {
+        if (isOmitted(def)) {
+          localRequestDefs.push(def);
+          localResponseDefs.push(def);
+        } else if (isRequestInterceptor(def)) {
+          localRequestDefs.push(def);
+        } else if (isResponseInterceptor(def)) {
+          localResponseDefs.push(def);
+        }
       }
-      return;
+
+      route.beforeInterceptors = mergeInterceptors(
+        this._globalRequestInterceptors,
+        localRequestDefs,
+      ) as RequestInterceptor[];
+
+      route.afterInterceptors = mergeInterceptors(
+        this._globalResponseInterceptors,
+        localResponseDefs,
+      ) as ResponseInterceptor[];
     }
 
-    const hostnames = Array.isArray(route.hostnames) ? route.hostnames : [route.hostnames];
-    for (const hostname of hostnames) {
-      registerRoute(this.rawApp.domain(hostname), route, routeHandler);
-    }
+    this._interceptorsArePrecalculated = true;
   }
 
-  /**
-   * Registers middlewares or routes with the application.
-   *
-   * @param middlewaresOrRoutes - The middlewares or routes to register.
-   * @returns The RoutesApp instance for chaining.
-   */
-  public use(...middlewaresOrRoutes: (ErrorMiddleware | Route<never>)[]): RoutesApp {
-    for (const middlewareOrRoute of middlewaresOrRoutes) {
-      if (middlewareOrRoute instanceof Route) {
-        this.addRoute(middlewareOrRoute);
-      } else if (middlewareOrRoute instanceof ErrorMiddleware) {
-        const emw = middlewareOrRoute as ErrorMiddleware;
-        if (emw.name in this._errorMiddlewares) {
-          this._errorMiddlewaresOrder.splice(this._errorMiddlewaresOrder.indexOf(emw.name), 1);
+  private async runErrorMiddlewares(error: unknown, args: any) {
+    const middlewareNames = this._errorMiddlewaresOrder;
+    let index = 0;
+    const next: NextFunction = async (params?: NextParams) => {
+      if (index < middlewareNames.length) {
+        const name = middlewareNames[index++];
+        const currentMiddleware = this.errorMiddlewares[name!];
+        if (currentMiddleware) {
+          await currentMiddleware.handleError(error, { ...args, prevParams: params, next });
+        } else {
+          await next(params);
         }
+      }
+    };
 
-        this._errorMiddlewares[emw.name] = emw;
-        this._errorMiddlewaresOrder = [emw.name, ...this._errorMiddlewaresOrder];
-      } // TODO: Normal Middleware
-    }
-
-    return this;
+    await next();
   }
 
   /**
@@ -264,7 +270,7 @@ export class RoutesApp {
    * @param cb - Callback function when listening starts.
    * @returns The RoutesApp instance.
    */
-  listen(port: number, cb: UWSListenCallback): RoutesApp;
+  public listen(port: number, cb: UWSListenCallback): RoutesApp;
   /**
    * Starts listening on the specified host and port.
    *
@@ -273,14 +279,15 @@ export class RoutesApp {
    * @param cb - Callback function when listening starts.
    * @returns The RoutesApp instance.
    */
-  listen(host: RecognizedString, port: number, cb: UWSListenCallback): RoutesApp;
-  listen(hostOrPort: RecognizedString | number, portOrCb: number | UWSListenCallback, cb?: UWSListenCallback): RoutesApp {
+  public listen(host: RecognizedString, port: number, cb: UWSListenCallback): RoutesApp;
+  public listen(hostOrPort: RecognizedString | number, portOrCb: number | UWSListenCallback, cb?: UWSListenCallback): RoutesApp {
+    this.precalculateInterceptors();
+
     if (typeof hostOrPort === 'number') {
       this.rawApp.listen(hostOrPort, portOrCb as UWSListenCallback);
     } else {
       this.rawApp.listen(hostOrPort, portOrCb as number, cb!);
     }
-
     return this;
   }
 
@@ -292,6 +299,7 @@ export class RoutesApp {
    * @returns The RoutesApp instance.
    */
   public listenExclusive(port: number, cb: UWSListenCallback): RoutesApp {
+    this.precalculateInterceptors();
     this.rawApp.listen(port, 1, cb);
     return this;
   }
@@ -304,6 +312,7 @@ export class RoutesApp {
    * @returns The RoutesApp instance.
    */
   public listenUnix(cb: UWSListenCallback, path: RecognizedString): RoutesApp {
+    this.precalculateInterceptors();
     this.rawApp.listen_unix(cb, path);
     return this;
   }
@@ -314,7 +323,8 @@ export class RoutesApp {
    * @param info - The API information object.
    * @returns The OpenAPI specification object.
    */
-  public getOpenApiSchema(info: InfoObject): OpenAPIObject {
+  public async getOpenApiSchema(info: InfoObject): Promise<OpenAPIObject> {
+    this.precalculateInterceptors();
     const generator = new OpenApiGenerator();
     return generator.generate(info, this.routes, this.errorMiddlewares);
   }

@@ -1,9 +1,9 @@
 import { OpenApiGeneratorV31, OpenAPIRegistry, type RouteConfig } from '@asteasolutions/zod-to-openapi';
 import { z, type ZodType } from 'zod';
-import type { Route, RouteParam } from '../../route/index.js';
-import type { ErrorMiddleware } from '../../middleware/index.js';
+import type { Route, RouteParam } from '../route/index.js';
+import type { ErrorMiddleware } from '../middleware/index.js';
 import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
-import { RouteParamType } from '../../route/param/route-param-types.type.js';
+import { RouteParamType } from '../route/param/route-param-types.type.js';
 
 export class OpenApiGenerator {
   private readonly registry: OpenAPIRegistry;
