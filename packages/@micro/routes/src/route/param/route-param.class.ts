@@ -4,111 +4,28 @@ import type { Request } from '../../http/index.js';
 import type { RouteParamType } from './route-param-types.type.js';
 import type { AdapterType, RouteParamAdapter } from './adapters/index.js';
 import { getElevatorForSchema } from './get-elevator-for-schema.factory.js';
+import type { RouteParamMeta } from './route-param-meta.type.js';
+import { OpenApiBase } from '../../openapi/openapi-base.class.js';
+import type { OpenApiExtender } from '../../openapi/index.js';
 
-// Elevation input depends on adapter type:
-// - 'all' adapters always provide an array (possibly empty)
-// - 'first' / 'last' provide a single value or null
 export type ElevationHandler<T, AP extends AdapterType> =
   AP extends 'all' ? (value: string[]) => T : (value: string | null) => T;
-
-/**
- * Common metadata shared across all parameter types.
- */
-type ParamMetaCommon = {
-  /**
-   * A brief description of the parameter.
-   */
-  description?: string;
-
-  /**
-   * Indicates if the parameter is deprecated.
-   */
-  deprecated?: boolean;
-};
-
-/**
- * Enforces mutually exclusive usage of `example` or `examples`.
- */
-type ParamExampleXOR =
-  | {
-  example?: unknown;
-  examples?: never;
-}
-  | {
-  examples?: Record<
-    string,
-    {
-      summary?: string;
-      description?: string;
-      value?: unknown;
-      externalValue?: string;
-    }
-  >;
-  example?: never;
-};
-
-/**
- * Metadata specific to Path parameters.
- * Path parameters have restricted styles and cannot be optional (handled by route logic) or have empty values.
- */
-type PathParamMeta = ParamMetaCommon & {
-  style?: 'matrix' | 'label' | 'simple';
-  explode?: boolean;
-} & ParamExampleXOR;
-
-/**
- * Metadata specific to Query parameters.
- * Query parameters support the widest range of serialization styles and flags.
- */
-type QueryParamMeta = ParamMetaCommon & {
-  style?: 'form' | 'spaceDelimited' | 'pipeDelimited' | 'deepObject';
-  explode?: boolean;
-  allowReserved?: boolean;
-  allowEmptyValue?: boolean;
-} & ParamExampleXOR;
-
-/**
- * Metadata specific to Header parameters.
- * Header parameters strictly use the 'simple' style.
- */
-type HeaderParamMeta = ParamMetaCommon & {
-  style?: 'simple';
-  explode?: boolean;
-} & ParamExampleXOR;
-
-/**
- * Metadata specific to Cookie parameters.
- */
-type CookieParamMeta = ParamMetaCommon & {
-  style?: 'form';
-  explode?: boolean;
-} & ParamExampleXOR;
-
-/**
- * Conditional type that selects the correct metadata shape based on the parameter type.
- */
-export type RouteParamMeta<PT extends RouteParamType> =
-  PT extends 'path' ? PathParamMeta :
-    PT extends 'query' ? QueryParamMeta :
-      PT extends 'header' ? HeaderParamMeta :
-        PT extends 'cookie' ? CookieParamMeta :
-          (ParamMetaCommon & ParamExampleXOR); // Fallback
 
 /**
  * Represents a route parameter definition.
  * Handles reading, validating, and transforming parameter values from the request.
  *
  * @template T - The type of the parameter value (Zod output).
- * @template PT - The type of the parameter location (path, query, header).
+ * @template PT - The type of the parameter location (path, query, header, cookie).
  * @template AP - The adapter type ('first', 'last', 'all').
  */
-export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = 'first'> {
-  /**
-   * OpenApi meta information.
-   */
-  public meta?: RouteParamMeta<PT>;
-
+export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = 'first'> extends OpenApiBase {
   private _elevationHandler: ElevationHandler<T, AP> | undefined;
+
+  /**
+   * Internal storage for parameter-specific metadata.
+   */
+  private _meta: RouteParamMeta<PT> | undefined;
 
   /**
    * Creates a new RouteParam instance.
@@ -126,6 +43,7 @@ export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = '
     public readonly readType: AP,
     private readonly readAndValidateValueHandler: RouteParamAdapter<T>,
   ) {
+    super();
     if (this.readType === 'all') {
       assert(this.schema instanceof ZodArray, 'Cannot use "all" adapter type with non-array schema');
     }
@@ -134,14 +52,35 @@ export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = '
   }
 
   /**
-   * Sets the openapi meta-information.
-   * The allowed properties strictly depend on the parameter type (PT).
+   * Registers an OpenAPI extender (function) for advanced customization.
    *
-   * @param meta - The metadata object.
+   * @param builder - The function to build/extend the route configuration.
    */
-  public openapi(meta: RouteParamMeta<PT>): this {
-    this.meta = meta;
+  public override openapi(builder: OpenApiExtender): this;
+
+  /**
+   * Sets the OpenAPI metadata for this parameter.
+   * Strongly typed based on the parameter type (PT).
+   *
+   * @param meta - The metadata object (style, description, examples, etc.).
+   */
+  public override openapi(meta: RouteParamMeta<PT>): this;
+
+  public override openapi(metaOrBuilder: RouteParamMeta<PT> | OpenApiExtender): this {
+    if (typeof metaOrBuilder === 'function') {
+      super.openapi(metaOrBuilder);
+    } else {
+      // Merge new meta with existing meta
+      this._meta = { ...this._meta, ...metaOrBuilder };
+    }
     return this;
+  }
+
+  /**
+   * Returns the metadata for this parameter.
+   */
+  public get meta(): Readonly<RouteParamMeta<PT>> | undefined {
+    return this._meta;
   }
 
   /**
@@ -185,13 +124,8 @@ export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = '
     return this.readAndValidateValueHandler(req, 'raw', this._elevationHandler) as AP extends 'all' ? string[] : (string | null);
   }
 
-  // --------------------------------------------------------------------------
-  // Type Guards / Predicates
-  // --------------------------------------------------------------------------
-
   /**
    * Checks if this parameter is a Path parameter.
-   * Narrows the type of `this` to `RouteParam<T, 'path', AP>`.
    */
   public isPath(): this is RouteParam<T, 'path', AP> {
     return this.type === 'path';
@@ -199,7 +133,6 @@ export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = '
 
   /**
    * Checks if this parameter is a Query parameter.
-   * Narrows the type of `this` to `RouteParam<T, 'query', AP>`.
    */
   public isQuery(): this is RouteParam<T, 'query', AP> {
     return this.type === 'query';
@@ -207,7 +140,6 @@ export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = '
 
   /**
    * Checks if this parameter is a Header parameter.
-   * Narrows the type of `this` to `RouteParam<T, 'header', AP>`.
    */
   public isHeader(): this is RouteParam<T, 'header', AP> {
     return this.type === 'header';
@@ -215,7 +147,6 @@ export class RouteParam<T, PT extends RouteParamType, AP extends AdapterType = '
 
   /**
    * Checks if this parameter is a Cookie parameter.
-   * Narrows the type of `this` to `RouteParam<T, 'cookie', AP>`.
    */
   public isCookie(): this is RouteParam<T, 'cookie', AP> {
     return this.type === 'cookie';

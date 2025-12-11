@@ -11,6 +11,7 @@
     "./param": "./lib/route/param/index.js",
     "./http": "./lib/http/index.js",
     "./middleware": "./lib/middleware/index.js",
+    "./openapi": "./lib/openapi/index.js",
     "./utils": "./lib/utils/index.js"
   },
   "scripts": {

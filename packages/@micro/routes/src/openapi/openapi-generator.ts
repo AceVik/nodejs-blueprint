@@ -75,10 +75,6 @@ export class OpenApiGenerator {
     return {
       method: (route.method.toLowerCase?.() ?? String(route.method).toLowerCase()) as RouteConfig['method'],
       path: openApiPath,
-      tags: route.meta?.tags,
-      summary: route.meta?.summary ?? route.name,
-      description: route.meta?.description,
-      deprecated: route.meta?.deprecated,
     };
   }
 

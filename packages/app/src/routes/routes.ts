@@ -1,39 +1,16 @@
-import { route, allFromQuery, fromHeader, fromQuery, fromCookie } from '@micro/routes';
+import { route, allFromQuery, fromHeader, fromQuery } from '@micro/routes';
 import { z } from 'zod';
-
-export const getData = route({
-  use: [isAdmin, otherInterceptors, omit(unwantedInterceptor)],
-  params: {
-
-  },
-}, async () => {
-
-});
+import { routeMeta } from '@micro/routes/openapi';
 
 export const getStuff = route({
+  use: [],
   params: {
     test2: fromQuery(z.string().min(3)),
     test3: fromQuery(z.boolean()),
     test: allFromQuery(z.array(z.number())),
-    testAbc: fromQuery(z.string().optional()).openapi({ description: 'Test optional query param', deprecated: true, style: 'spaceDelimited' }),
+    testAbc: fromQuery(z.string().optional()),
     userAgent: fromHeader(z.string()),
   },
-  // Gives middlewares and order executed before handler
-  /*
-  before: [
-    checkIsAdmin,
-    checkHasRole('admin'),
-    `${MAIN_MIDDLEWARE.name}`,
-    checkHasPermission('readStuff'),
-  ],*/
-  // Gives middlewares and order executed after handler
-  /*
-  after: [
-    transformFileResponseToStream,
-    appendSpecialHeaders,
-  ],*/
-  // How to give error middlewares?
-  // What could be else interesting for a full capability of an api route?
 }, async ({ req, res, params, app }) => {
   res.send(JSON.stringify({
     method: req.method,
@@ -48,7 +25,8 @@ export const getStuff = route({
     routeName: app.routes[0].name,
     routePath: app.routes[0].path,
   }));
-}).openapi({
-  tags: ['Example'],
-  description: 'Test route',
-});
+}).openapi(routeMeta({
+  tag: 'Example',
+  description: 'Just an example endpoint',
+  summary: 'Example endpoint',
+}));

@@ -34,6 +34,8 @@ const getJwks = async () => {
 export type OidcAuthContext = JWTVerifyResult<JwtPayload>;
 
 export const oidcAuthRequiredSecuritySchemaName = 'oidcAuth';
+// Use a stable context key instead of relying on function `.name`
+export const oidcAuthContextKey = oidcAuthRequiredSecuritySchemaName;
 export const oidcAuthRequired = middleware(async ({
   req, next,
 }) => {
@@ -50,7 +52,7 @@ export const oidcAuthRequired = middleware(async ({
   });
 
   next({
-    [oidcAuthRequired.name]: jwtVerifyResult,
+    [oidcAuthContextKey]: jwtVerifyResult,
   });
 }).openapi((onExtendRoute, registry) => {
   registry.registerComponent('securitySchemes', oidcAuthRequiredSecuritySchemaName, {
