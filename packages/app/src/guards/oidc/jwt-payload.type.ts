@@ -52,6 +52,9 @@ interface JWTPayload {
   [propName: string]: unknown;
 }
 
+/**
+ * Extended JWT Payload with specific application claims.
+ */
 export interface JwtPayload extends JWTPayload {
   sub: string;
   iss: string;

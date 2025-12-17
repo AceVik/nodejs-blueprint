@@ -3,11 +3,12 @@ import { type Request, type Response, BadRequestError } from '../http/index.js';
 import type { RouteHandler, RouteHandlerArgs } from './route-handler.type.js';
 import type { RouteParams, RouteParamValues } from './param/route-params.type.js';
 import type { RoutesApp } from '../server/index.js';
-import type { RouteAvailability, RouteRequestMethod } from './route-options.type.js';
+import type { RouteAvailability, RouteMeta, RouteRequestMethod } from './route-options.type.js';
 import type { HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
 import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
 import type { RequestInterceptor, ResponseInterceptor } from '../http/interceptors/index.js';
 import { OpenApiBase } from '../openapi/openapi-base.class.js';
+import { type OpenApiExtender, routeMeta } from '../openapi/index.js';
 
 /**
  * Represents a defined route within the application.
@@ -29,18 +30,19 @@ export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends O
 
   /**
    * The stack of request interceptors (Before) configured for this route.
-   * This is managed by the RoutesApp and will be filled on listener start.
+   * Filled during application startup by the RoutesApp.
    */
   public beforeInterceptors: RequestInterceptor[] = [];
 
   /**
    * The stack of response interceptors (After) configured for this route.
-   * This is managed by the RoutesApp and will be filled on listener start.
+   * Filled during application startup by the RoutesApp.
    */
   public afterInterceptors: ResponseInterceptor[] = [];
 
   /**
    * Optional schema to validate and type the handler's return value.
+   * Used for runtime validation and OpenAPI response generation.
    */
   public readonly output?: R;
 
@@ -70,6 +72,34 @@ export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends O
     this.exec = handler;
     this.output = output;
     this.paramKeys = this.params ? Object.keys(this.params) : [];
+  }
+
+  /**
+   * Configures the OpenAPI documentation for this route using a metadata object.
+   * This object is converted into an OpenApiExtender internally.
+   *
+   * @param meta - The OpenAPI metadata (summary, description, tags, etc.).
+   * @returns The Route instance for chaining.
+   */
+  public override openapi(meta: RouteMeta): this;
+
+  /**
+   * Configures the OpenAPI documentation for this route using a functional extender.
+   *
+   * @param builder - The callback to modify the OpenAPI operation object.
+   * @returns The Route instance for chaining.
+   */
+  public override openapi(builder: OpenApiExtender): this;
+
+  public override openapi(metaOrBuilder: RouteMeta | OpenApiExtender): this {
+    if (typeof metaOrBuilder === 'function') {
+      super.openapi(metaOrBuilder);
+    } else {
+      // Wrap the metadata object in the standard routeMeta extender and register it
+      this.openapi(routeMeta(metaOrBuilder));
+    }
+
+    return this;
   }
 
   /**
@@ -122,13 +152,13 @@ export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends O
   /**
    * Executes the route logic.
    * This method extracts parameters, validates them, and runs the handler.
-   * It does NOT handle interceptors or sending the response; that is the responsibility of the caller (Route Manager).
+   * It also injects the dependency resolver into the handler arguments.
    *
    * @param req - The request object.
    * @param res - The response object.
    * @param app - The application instance.
    * @param onAborted - Callback to register an abortion handler.
-   * @returns The raw result returned by the handler (to be processed by Response Interceptors).
+   * @returns The raw result returned by the handler.
    * @throws {BadRequestError} If parameter validation fails.
    */
   public async handleRequest(req: Request, res: Response, app: RoutesApp, onAborted: (handler: () => void) => void): Promise<unknown> {
@@ -144,6 +174,7 @@ export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends O
       res,
       onAborted,
       params,
+      resolve: (interceptor) => req.resolve(interceptor),
     };
 
     return this.exec(routeHandlerArgs);

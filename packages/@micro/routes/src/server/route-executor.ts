@@ -106,6 +106,7 @@ export async function executeRoute(
   route: Route<never>,
   coreHandler: () => Promise<unknown>,
 ): Promise<unknown> {
+  // Use the precalculated interceptor chains which now include all resolved dependencies
   const rawResult = await runRequestPhase(
     req,
     res,

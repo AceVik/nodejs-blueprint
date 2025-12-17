@@ -9,7 +9,7 @@ import { RouteParam } from '../route/param/route-param.class.js';
  * The function that actually modifies the route configuration.
  * Receives the current config AND the Route instance.
  */
-export type OpenApiRouteExtender = (config: RouteConfig, route: Route<any>) => Awaitable<RouteConfig>;
+export type OpenApiRouteExtender = (config: RouteConfig, route: Route<never>) => Awaitable<RouteConfig>;
 
 /**
  * The function that modifies/extends parameter metadata.

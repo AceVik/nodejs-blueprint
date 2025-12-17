@@ -20,18 +20,34 @@ export type RequestInterceptParams<S extends ZodType> = InterceptorContextTools<
 };
 
 /**
- * Base class for interceptors that run BEFORE the route handler.
- * Used for Authentication, Guards, Logging (Start), and Context Enrichment.
- *
- * @template S - The Zod schema type of the data this interceptor provides.
+ * Request interceptor handler.
  */
-export abstract class RequestInterceptor<S extends ZodType = ZodVoid> extends Interceptor<S> {
+export type RequestInterceptorHandler<S extends ZodType = ZodVoid> = (params: RequestInterceptParams<S>) => Awaitable<void>;
+
+/**
+ * Base class for interceptors that run BEFORE the route handler.
+ */
+export class RequestInterceptor<S extends ZodType = ZodVoid> extends Interceptor<S> {
   /**
-   * Executes the interceptor logic before the handler.
-   *
-   * @param params - Execution parameters including request, response, and context tools.
+   * List of interceptors that must run before this one.
+   * Used for execution ordering and metadata inheritance.
    */
-  abstract intercept(params: RequestInterceptParams<S>): Awaitable<void>;
+  public readonly dependencies = new Set<RequestInterceptor<any>>();
+
+  constructor(public readonly intercept: RequestInterceptorHandler<S>) {
+    super();
+  }
+
+  /**
+   * Declares that this interceptor depends on another interceptor.
+   * This ensures execution order and, for Guards, inherits configuration context.
+   *
+   * @param parent - The interceptor that must run before this one.
+   */
+  public after(parent: RequestInterceptor<any>): this {
+    this.dependencies.add(parent);
+    return this;
+  }
 }
 
 /**

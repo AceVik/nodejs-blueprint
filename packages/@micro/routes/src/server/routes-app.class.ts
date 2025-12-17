@@ -231,18 +231,58 @@ export class RoutesApp {
         }
       }
 
-      route.beforeInterceptors = mergeInterceptors(
+      // 1. Merge Globals and Locals (handling Omit)
+      const mergedRequestInterceptors = mergeInterceptors(
         this._globalRequestInterceptors,
         localRequestDefs,
       ) as RequestInterceptor[];
 
-      route.afterInterceptors = mergeInterceptors(
+      const mergedResponseInterceptors = mergeInterceptors(
         this._globalResponseInterceptors,
         localResponseDefs,
       ) as ResponseInterceptor[];
+
+      // 2. Resolve Dependencies (DFS Topological Sort)
+      route.beforeInterceptors = this.resolveInterceptorChain(mergedRequestInterceptors);
+      route.afterInterceptors = this.resolveInterceptorChain(mergedResponseInterceptors);
     }
 
     this._interceptorsArePrecalculated = true;
+  }
+
+  /**
+   * Resolves dependencies for a list of interceptors using Depth-First Search.
+   * Ensures that parents are always executed before their children.
+   * Automatically injects missing dependencies into the chain.
+   *
+   * @param interceptors - The initial list of interceptors.
+   * @returns A new list with all dependencies resolved and ordered.
+   */
+  private resolveInterceptorChain<T extends Interceptor<any>>(interceptors: T[]): T[] {
+    const visited = new Set<T>();
+    const result: T[] = [];
+
+    const visit = (interceptor: T) => {
+      // Avoid cycles and duplicates
+      if (visited.has(interceptor)) return;
+
+      // Check if the interceptor has dependencies (e.g. RequestInterceptor)
+      if ('dependencies' in interceptor && interceptor.dependencies instanceof Set) {
+        for (const dep of (interceptor as any).dependencies) {
+          visit(dep as T);
+        }
+      }
+
+      visited.add(interceptor);
+      result.push(interceptor);
+    };
+
+    // Iterate through the explicit list
+    for (const item of interceptors) {
+      visit(item);
+    }
+
+    return result;
   }
 
   private async runErrorMiddlewares(error: unknown, args: any) {

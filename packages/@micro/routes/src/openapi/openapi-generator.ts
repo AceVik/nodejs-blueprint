@@ -4,7 +4,12 @@ import type { Route, RouteParam } from '../route/index.js';
 import type { ErrorMiddleware } from '../middleware/index.js';
 import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
 import { RouteParamType } from '../route/param/route-param-types.type.js';
+import type { OpenApiExtenderHooks, OpenApiRouteExtender } from './types.js';
 
+/**
+ * Generates OpenAPI 3.1 documentation from the registered routes and middlewares.
+ * Orchestrates parameter extraction, security scheme registration via guards, and schema generation.
+ */
 export class OpenApiGenerator {
   private readonly registry: OpenAPIRegistry;
 
@@ -12,13 +17,21 @@ export class OpenApiGenerator {
     this.registry = new OpenAPIRegistry();
   }
 
-  public generate(info: InfoObject, routes: readonly Route<never>[], errorMiddlewares: Record<string | symbol, ErrorMiddleware>): OpenAPIObject {
+  /**
+   * Generates the full OpenAPI document.
+   *
+   * @param info - The general API information (title, version, etc.).
+   * @param routes - The list of registered routes.
+   * @param errorMiddlewares - The map of registered error middlewares.
+   * @returns The complete OpenAPI object.
+   */
+  public async generate(info: InfoObject, routes: readonly Route<never>[], errorMiddlewares: Record<string | symbol, ErrorMiddleware>): Promise<OpenAPIObject> {
     const allMiddlewares = this.getAllMiddlewares(errorMiddlewares);
 
     this.registerSharedSchemas(allMiddlewares);
 
     for (const route of routes) {
-      this.registerRoute(route, allMiddlewares);
+      await this.registerRoute(route, allMiddlewares);
     }
 
     const builder = new OpenApiGeneratorV31(this.registry.definitions);
@@ -50,32 +63,64 @@ export class OpenApiGenerator {
     }
   }
 
-  private registerRoute(route: Route<never>, middlewares: ErrorMiddleware[]) {
+  private async registerRoute(route: Route<never>, middlewares: ErrorMiddleware[]) {
     const openApiPath = route.path.replace(/:([a-zA-Z0-9_]+)/g, '{$1}');
 
-    const basicConfig = this.getRouteBasicConfig(route, openApiPath);
-    const requestConfig = this.getRequestConfig(route);
-    const errorResponses = this.getErrorResponses(middlewares);
-
-    const routeConfig: RouteConfig = {
-      ...basicConfig,
-      ...requestConfig,
+    // 1. Build Base Configuration
+    const baseConfig: RouteConfig = {
+      method: (route.method.toLowerCase?.() ?? String(route.method).toLowerCase()) as RouteConfig['method'],
+      path: openApiPath,
+      ...this.getRequestConfig(route),
       responses: {
-        200: {
-          description: 'Successful response',
-        },
-        ...errorResponses,
+        ...this.getSuccessResponse(route),
+        ...this.getErrorResponses(middlewares),
       },
     };
 
-    this.registry.registerPath(routeConfig);
+    // 2. Apply Interceptor/Guard Modifications AND Route Metadata (via OpenApiBase mechanism)
+    const finalConfig = await this.applyOpenApiHooks(route, baseConfig);
+
+    this.registry.registerPath(finalConfig);
   }
 
-  private getRouteBasicConfig(route: Route<never>, openApiPath: string): Pick<RouteConfig, 'method' | 'path' | 'tags' | 'summary' | 'description' | 'deprecated'> {
-    return {
-      method: (route.method.toLowerCase?.() ?? String(route.method).toLowerCase()) as RouteConfig['method'],
-      path: openApiPath,
+  /**
+   * Collects and executes all OpenAPI extenders from the Route and its Interceptors.
+   */
+  private async applyOpenApiHooks(route: Route<never>, config: RouteConfig): Promise<RouteConfig> {
+    let currentConfig = { ...config };
+    const routeExtenders: OpenApiRouteExtender[] = [];
+
+    // Define the hooks implementation that collects callbacks
+    const hooks: OpenApiExtenderHooks = {
+      onExtendRoute: (extender) => {
+        routeExtenders.push(extender);
+      },
+      onExtendParamMeta: () => {
+        // Parameter meta extension is usually handled within the Param classes directly,
+        // but we satisfy the interface here.
+      },
     };
+
+    // 1. Collect extenders from Interceptors (Guards, etc.)
+    const allInterceptors = [...route.beforeInterceptors, ...route.afterInterceptors];
+    for (const interceptor of allInterceptors) {
+      // Check if the interceptor has an initOpenapi function (inherited from OpenApiBase)
+      if (typeof (interceptor as any).initOpenapi === 'function') {
+        await (interceptor as any).initOpenapi(hooks, this.registry);
+      }
+    }
+
+    // 2. Collect extender from the Route itself (e.g., .openapi({ summary: '...' }))
+    if (route.initOpenapi) {
+      await route.initOpenapi(hooks, this.registry);
+    }
+
+    // 3. Execute all collected route configuration modifiers sequentially
+    for (const extender of routeExtenders) {
+      currentConfig = await extender(currentConfig, route);
+    }
+
+    return currentConfig;
   }
 
   private getRequestConfig(route: Route<never>): Pick<RouteConfig, 'request'> {
@@ -91,7 +136,6 @@ export class OpenApiGenerator {
         const primaryName = param.names?.[0] ?? key;
         const schema = this.enrichSchemaWithMeta(param, primaryName);
 
-        // Nutzung der Type Guards für sauberes Routing
         if (param.isQuery()) {
           queryShape[primaryName] = schema;
         } else if (param.isHeader()) {
@@ -125,6 +169,27 @@ export class OpenApiGenerator {
     };
   }
 
+  private getSuccessResponse(route: Route<never>): RouteConfig['responses'] {
+    if (!route.output) {
+      return {
+        200: {
+          description: 'Successful response',
+        },
+      };
+    }
+
+    return {
+      200: {
+        description: 'Successful response',
+        content: {
+          'application/json': {
+            schema: route.output,
+          },
+        },
+      },
+    };
+  }
+
   private fillMissingPathParams(originalPath: string, pathShape: Record<string, ZodType>) {
     const matches = originalPath.matchAll(/:([a-zA-Z0-9_]+)/g);
     for (const match of matches) {
@@ -142,55 +207,40 @@ export class OpenApiGenerator {
   }
 
   private enrichSchemaWithMeta(param: RouteParam<unknown, RouteParamType>, primaryName: string): ZodType {
-    // 1. Basis-Metadaten (Common)
     const baseMeta = {
       description: param.meta?.description || param.schema.description,
       deprecated: param.meta?.deprecated,
     };
 
-    // 2. Example Handling (XOR logic)
     const exampleMeta: any = {};
     if (param.meta && 'examples' in param.meta && param.meta.examples) {
       exampleMeta.examples = param.meta.examples;
     } else if (param.meta && 'example' in param.meta && param.meta.example) {
       exampleMeta.example = param.meta.example;
     } else if (param.schema.description) {
-      // Fallback: Zod description als Example (Optional, je nach Präferenz)
       exampleMeta.example = param.schema.description;
     }
 
-    // 3. Typspezifische Parameter-Konfiguration via Type Guards
     const paramConfig: any = {
       name: primaryName,
       in: param.type,
     };
 
     if (param.isPath()) {
-      // Path Parameter sind IMMER required und haben eingeschränkte Styles
       paramConfig.required = true;
       paramConfig.style = param.meta?.style;
       paramConfig.explode = param.meta?.explode;
-
-    } else if (param.isQuery()) {
-      // Query Parameter haben die meisten Optionen
-      paramConfig.required = this.calculateRequired(param);
-      paramConfig.allowEmptyValue = param.meta?.allowEmptyValue ?? param.schema.safeParse('').success;
-      paramConfig.allowReserved = param.meta?.allowReserved;
-      paramConfig.style = param.meta?.style;
-      paramConfig.explode = param.meta?.explode;
-
-    } else if (param.isHeader()) {
+    } else {
       paramConfig.required = this.calculateRequired(param);
       paramConfig.style = param.meta?.style;
       paramConfig.explode = param.meta?.explode;
 
-    } else if (param.isCookie()) {
-      paramConfig.required = this.calculateRequired(param);
-      paramConfig.style = param.meta?.style;
-      paramConfig.explode = param.meta?.explode;
+      if (param.isQuery()) {
+        paramConfig.allowEmptyValue = param.meta?.allowEmptyValue ?? param.schema.safeParse('').success;
+        paramConfig.allowReserved = param.meta?.allowReserved;
+      }
     }
 
-    // 4. Zusammenfügen
     return param.schema.openapi({
       ...baseMeta,
       ...exampleMeta,
@@ -198,14 +248,7 @@ export class OpenApiGenerator {
     });
   }
 
-  /**
-   * Helper to determine if a parameter is required based on Zod schema.
-   * Path parameters are handled separately (always true).
-   */
   private calculateRequired(param: RouteParam<unknown, RouteParamType>): boolean {
-    // Wenn allowEmptyValue true ist, ist es technisch nicht "required" im Sinne von "muss Daten haben",
-    // aber OpenAPI 'required' bedeutet "muss im Request vorhanden sein".
-    // Hier prüfen wir einfach, ob 'undefined' ein valider Input wäre.
     return !param.schema.safeParse(undefined).success;
   }
 

@@ -1,9 +1,9 @@
 import { route, allFromQuery, fromHeader, fromQuery } from '@micro/routes';
 import { z } from 'zod';
-import { routeMeta } from '@micro/routes/openapi';
+import { isAdmin } from '@app/guards/index.js';
 
 export const getStuff = route({
-  use: [],
+  use: [isAdmin],
   params: {
     test2: fromQuery(z.string().min(3)),
     test3: fromQuery(z.boolean()),
@@ -25,8 +25,8 @@ export const getStuff = route({
     routeName: app.routes[0].name,
     routePath: app.routes[0].path,
   }));
-}).openapi(routeMeta({
+}).openapi({
   tag: 'Example',
   description: 'Just an example endpoint',
   summary: 'Example endpoint',
-}));
+});

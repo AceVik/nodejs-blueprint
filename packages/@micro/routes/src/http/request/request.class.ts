@@ -1,17 +1,52 @@
+import type { ZodType } from 'zod';
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
 import type { QueryParamsHandler, RequestMethod } from '../../http/index.js';
 import { CookieParamsHandler, HeadersHandler, PathParamsHandler } from './handlers/index.js';
-import type { InterceptorContextRegistry } from '../interceptors/index.js';
+import type { RequestInterceptor } from '../interceptors/index.js';
 
 const dec = new TextDecoder('ascii');
 
 /**
  * Wrapper around the uWebSockets.js HttpRequest and HttpResponse.
  * Provides convenient access to request properties like URL, method, headers, query and cookie parameters.
+ * Also acts as a dependency injection container for Interceptors and Guards.
  */
 export class Request {
+  // -------------------------------------------------------------------------
+  // Context / Dependency Injection
+  // -------------------------------------------------------------------------
 
-  public readonly context: InterceptorContextRegistry = new Map();
+  /**
+   * Internal storage for context data provided by interceptors.
+   * Key is the Interceptor instance, Value is the inferred Zod output.
+   */
+  private readonly _context = new Map<RequestInterceptor<any>, any>();
+
+  /**
+   * Provides a value to the request context, bound to a specific interceptor.
+   *
+   * @template T - The type of the data, inferred from the interceptor's schema.
+   * @param interceptor - The interceptor instance acting as the key.
+   * @param value - The value to store.
+   */
+  public provide<T>(interceptor: RequestInterceptor<ZodType<T>>, value: T): void {
+    this._context.set(interceptor, value);
+  }
+
+  /**
+   * Resolves a value from the request context provided by a specific interceptor.
+   *
+   * @template T - The type of the data, inferred from the interceptor's schema.
+   * @param interceptor - The interceptor instance acting as the key.
+   * @returns The typed value if present, otherwise undefined.
+   */
+  public resolve<T>(interceptor: RequestInterceptor<ZodType<T>>): T | undefined {
+    return this._context.get(interceptor);
+  }
+
+  // -------------------------------------------------------------------------
+  // Request Properties & Handlers
+  // -------------------------------------------------------------------------
 
   private _url: string | null = null;
 
@@ -23,7 +58,6 @@ export class Request {
     if (!this._url) {
       this._url = this.req.getUrl();
     }
-
     return this._url;
   }
 
@@ -37,7 +71,6 @@ export class Request {
     if (!this._method) {
       this._method = this.req.getMethod().toUpperCase() as RequestMethod;
     }
-
     return this._method;
   }
 
@@ -51,7 +84,6 @@ export class Request {
     if (!this._remoteAddress) {
       this._remoteAddress = dec.decode(this.res.getRemoteAddressAsText());
     }
-
     return this._remoteAddress;
   }
 
@@ -65,7 +97,6 @@ export class Request {
     if (!this._remoteProxyAddress) {
       this._remoteProxyAddress = dec.decode(this.res.getProxiedRemoteAddressAsText());
     }
-
     return this._remoteProxyAddress;
   }
 
@@ -79,7 +110,6 @@ export class Request {
     if (!this._query) {
       this._query = new URLSearchParams(this.req.getQuery());
     }
-
     return this._query;
   }
 

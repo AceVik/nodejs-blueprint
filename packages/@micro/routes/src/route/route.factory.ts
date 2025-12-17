@@ -10,13 +10,8 @@ import { camelToKebab } from '../utils/camel-to-kebab.util.js';
 const empty = '';
 const emptyRequestMethod = empty as RequestMethod;
 
-/**
- * Creates a new route definition.
- *
- * @param handler - The route handler function.
- * @returns A new Route instance.
- */
-export function route<S extends RouteParams, R extends ZodType = ZodVoid>(handler: RouteHandler<S>): Route<S, R>;
+// Helper type for empty params to aid inference and avoid TS2742
+type EmptyParams = Record<never, never>;
 
 /**
  * Creates a new route definition with options.
@@ -25,22 +20,57 @@ export function route<S extends RouteParams, R extends ZodType = ZodVoid>(handle
  * @param handler - The route handler function.
  * @returns A new Route instance.
  */
-export function route<S extends RouteParams, R extends ZodType = ZodVoid>(options: RouteOptions<S, R>, handler: RouteHandler<S>): Route<S, R>;
-export function route<S extends RouteParams, R extends ZodType = ZodVoid>(optionsOrHandler: RouteOptions<S, R> | RouteHandler<S>, handler?: RouteHandler<S>): Route<S, R>;
-export function route<S extends RouteParams, R extends ZodType = ZodVoid>(optionsOrHandler: RouteOptions<S, R> | RouteHandler<S>, handler?: RouteHandler<S>): Route<S, R> {
+export function route<S extends RouteParams, R extends ZodType = ZodVoid>(
+  options: RouteOptions<S, R>,
+  handler: RouteHandler<S>
+): Route<S, R>;
+
+/**
+ * Creates a new route definition without options (just a handler).
+ * Infers params as empty to prevent type inference issues (TS2742).
+ *
+ * @param handler - The route handler function.
+ * @returns A new Route instance with empty params.
+ */
+export function route<R extends ZodType = ZodVoid>(
+  handler: RouteHandler<EmptyParams>
+): Route<EmptyParams, R>;
+
+// Implementation
+export function route<S extends RouteParams, R extends ZodType = ZodVoid>(
+  optionsOrHandler: RouteOptions<S, R> | RouteHandler<S>,
+  handler?: RouteHandler<S>,
+): Route<S, R> {
   let hostnames: RouteAvailability = 'any';
 
+  // Case 1: Just Handler (Empty Params)
   if (typeof optionsOrHandler === 'function') {
-    return new Route(empty, empty, emptyRequestMethod, optionsOrHandler, hostnames);
-  } else {
+    // Cast strict EmptyParams to generic S to satisfy return type structure
+    return new Route(
+      empty,
+      empty,
+      emptyRequestMethod,
+      optionsOrHandler,
+      hostnames,
+    ) as unknown as Route<S, R>;
+  }
+
+  // Case 2: Options + Handler
+  else {
     hostnames = optionsOrHandler.for || hostnames;
 
+    // Normalize param names (camelCase key -> kebab-case header/query param)
     if (optionsOrHandler?.params) {
       for (const paramName in optionsOrHandler.params) {
         const param = optionsOrHandler.params[paramName]!;
         if (!param.names.length) {
-          Object.defineProperty(optionsOrHandler.params[paramName], 'names', {
-            value: (['header'] as RouteParamType[]).includes(param.type) ? [camelToKebab(paramName), paramName] : [paramName, camelToKebab(paramName)],
+          const isHeader = (['header'] as RouteParamType[]).includes(param.type);
+
+          Object.defineProperty(param, 'names', {
+            value: isHeader ? [camelToKebab(paramName), paramName] : [paramName, camelToKebab(paramName)],
+            configurable: true,
+            enumerable: true,
+            writable: true,
           });
         }
       }

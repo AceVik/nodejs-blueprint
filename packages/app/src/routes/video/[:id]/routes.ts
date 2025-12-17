@@ -14,6 +14,9 @@ export const getStuff = route({
 
 // PUT /video/:id
 export const putStuff = route({
+  params: {
+    id: fromPath(z.uuidv7()),
+  },
 }, async ({ req, res }) => {
   console.log(req);
 });
