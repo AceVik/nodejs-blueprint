@@ -2,7 +2,7 @@ import type { ZodType } from 'zod';
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
 import type { QueryParamsHandler, RequestMethod } from '../../http/index.js';
 import { CookieParamsHandler, HeadersHandler, PathParamsHandler } from './handlers/index.js';
-import type { RequestInterceptor } from '../interceptors/index.js';
+import type { Interceptor } from '../interceptors/interceptor.class.js';
 
 const dec = new TextDecoder('ascii');
 
@@ -20,7 +20,7 @@ export class Request {
    * Internal storage for context data provided by interceptors.
    * Key is the Interceptor instance, Value is the inferred Zod output.
    */
-  private readonly _context = new Map<RequestInterceptor<any>, any>();
+  private readonly _context = new Map<Interceptor<any>, any>();
 
   /**
    * Provides a value to the request context, bound to a specific interceptor.
@@ -29,7 +29,7 @@ export class Request {
    * @param interceptor - The interceptor instance acting as the key.
    * @param value - The value to store.
    */
-  public provide<T>(interceptor: RequestInterceptor<ZodType<T>>, value: T): void {
+  public provide<T>(interceptor: Interceptor<ZodType<T>>, value: T): void {
     this._context.set(interceptor, value);
   }
 
@@ -40,7 +40,7 @@ export class Request {
    * @param interceptor - The interceptor instance acting as the key.
    * @returns The typed value if present, otherwise undefined.
    */
-  public resolve<T>(interceptor: RequestInterceptor<ZodType<T>>): T | undefined {
+  public resolve<T>(interceptor: Interceptor<ZodType<T>>): T | undefined {
     return this._context.get(interceptor);
   }
 

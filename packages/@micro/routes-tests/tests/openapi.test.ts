@@ -11,7 +11,7 @@ function createRoute(path: string, r: Route<any>) {
 
 
 describe('OpenAPI Generation', () => {
-  it('should generate a valid OpenAPI schema', () => {
+  it('should generate a valid OpenAPI schema', async () => {
     const app = createRoutesApp();
 
     app.use(createRoute('/users/:userId', route({
@@ -23,7 +23,7 @@ describe('OpenAPI Generation', () => {
       },
     }, () => { })));
 
-    const schema = app.getOpenApiSchema({
+    const schema = await app.getOpenApiSchema({
       title: 'Test API',
       version: '1.0.0',
     });

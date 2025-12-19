@@ -22,18 +22,16 @@ export function createInterceptorTools<S extends ZodType>(req: Request, currentI
         throw new Error(`Interceptor ${currentInterceptor.constructor.name} tries to provide data but has no output schema.`);
       }
       const parsed = currentInterceptor.output.parse(data);
-      // Cast to generic Interceptor to satisfy the Map key type
-      req.context.set(currentInterceptor as unknown as Interceptor, parsed);
+      // Use Request API to store context for the current interceptor
+      req.provide(currentInterceptor as unknown as Interceptor<ZodType>, parsed);
     },
 
     resolve: <T extends ZodType>(target: Interceptor<T>): z.output<T> => {
-      // Cast to generic Interceptor to satisfy the Map lookup
-      const data = req.context.get(target as unknown as Interceptor);
-
+      // Use Request API to fetch context provided by another interceptor
+      const data = req.resolve(target as unknown as Interceptor<ZodType>) as z.output<T> | undefined;
       if (data === undefined) {
         throw new Error(`Dependency missing: Data from ${target.constructor.name} not found in context.`);
       }
-
       return data as z.output<T>;
     },
   };

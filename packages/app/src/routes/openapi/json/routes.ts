@@ -1,7 +1,7 @@
 import { route } from '@micro/routes';
 
 export const getOpenApiJson = route(async ({ app, res }) => {
-  const jsonSchema = app.getOpenApiSchema({
+  const jsonSchema = await app.getOpenApiSchema({
     title: 'Example Docs',
     version: '1.0.0',
   });

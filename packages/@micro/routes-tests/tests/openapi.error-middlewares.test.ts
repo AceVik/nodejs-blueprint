@@ -10,7 +10,7 @@ function withPath(path: string, r: Route<any>) {
 }
 
 describe('OpenAPI error middlewares', () => {
-  it('deduplicates shared schemas by refId and includes responses from all middlewares', () => {
+  it('deduplicates shared schemas by refId and includes responses from all middlewares', async () => {
     const app = createRoutesApp();
 
     const SharedError = z.object({ status: z.number(), message: z.string() }).openapi({ refId: 'SharedError' });
@@ -24,7 +24,7 @@ describe('OpenAPI error middlewares', () => {
       mw2,
     );
 
-    const schema = app.getOpenApiSchema({ title: 'X', version: '1.0.0' });
+    const schema = await app.getOpenApiSchema({ title: 'X', version: '1.0.0' });
     const op = schema.paths!['/ok'].get!;
 
     expect(op.responses['418']).toBeDefined();

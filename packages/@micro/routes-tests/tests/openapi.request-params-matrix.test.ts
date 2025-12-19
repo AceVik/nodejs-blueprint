@@ -10,7 +10,7 @@ function withPath(path: string, r: Route<any>) {
 }
 
 describe('OpenAPI request params matrix', () => {
-  it('auto-adds undeclared path params and respects required/optional and allowEmptyValue', () => {
+  it('auto-adds undeclared path params and respects required/optional and allowEmptyValue', async () => {
     const app = createRoutesApp();
     const r = route({ method: 'GET', params: {
       // required query
@@ -24,7 +24,7 @@ describe('OpenAPI request params matrix', () => {
     } }, () => {});
 
     app.use(withPath('/users/:id/items/:itemId', r));
-    const schema = app.getOpenApiSchema({ title: 'X', version: '1.0.0' });
+    const schema = await app.getOpenApiSchema({ title: 'X', version: '1.0.0' });
     const op = schema.paths!['/users/{id}/items/{itemId}'].get!;
 
     // Parameters present

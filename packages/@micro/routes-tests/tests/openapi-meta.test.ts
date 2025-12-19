@@ -8,7 +8,7 @@ function createRoute(path: string, r: Route<any>) {
 }
 
 describe('OpenAPI meta wiring', () => {
-  it('uses meta from route.openapi(...) for summary/description/tags/deprecated', () => {
+  it('uses meta from route.openapi(...) for summary/description/tags/deprecated', async () => {
     const app = createRoutesApp();
     const r = route({ method: 'GET' }, () => {});
     r.openapi({
@@ -20,7 +20,7 @@ describe('OpenAPI meta wiring', () => {
 
     app.use(createRoute('/items', r));
 
-    const schema = app.getOpenApiSchema({ title: 'X', version: '1.0.0' });
+    const schema = await app.getOpenApiSchema({ title: 'X', version: '1.0.0' });
     const op = schema.paths!['/items'].get!;
 
     expect(op.summary).toBe('List items');
