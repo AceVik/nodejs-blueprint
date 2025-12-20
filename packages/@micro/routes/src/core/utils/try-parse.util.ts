@@ -1,4 +1,4 @@
-import { InvalidJsonError } from '../errors/invalid-json.error.js';
+import { InvalidJsonError } from '../../errors/invalid-json.error.js';
 
 export function tryParse<T>(value: string | null | undefined): T | null | undefined {
   if (!value) {

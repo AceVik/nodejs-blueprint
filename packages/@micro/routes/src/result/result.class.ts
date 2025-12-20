@@ -34,33 +34,23 @@ export class Result<TData> {
   }
 
   // -------------------- Accessors --------------------
-  /**
-   * Returns a readonly view of all attached messages.
-   */
+  /** Returns a readonly view of all attached messages. */
   public getMessages(): readonly ResultMessage<unknown>[] {
     return this.messages;
   }
 
-  /**
-   * Returns the wrapped data (if any) without unwrapping guarantees.
-   * Prefer `expect` or `unwrapOr` when you need a definite value.
-   */
+  /** Returns the wrapped data (if any) without unwrapping guarantees. */
   public getData(): TData | undefined {
     return this.data;
   }
 
   // -------------------- State queries --------------------
-  /**
-   * True when no error messages have been added/combined.
-   * O(1) check backed by an internal flag.
-   */
+  /** True when no error messages have been added/combined. O(1) backed flag. */
   public isOk(): this is Result<TData> {
     return !this.hasErrors;
   }
 
-  /**
-   * Convenience inverse of `isOk()`.
-   */
+  /** Convenience inverse of `isOk()`. */
   public failed(): boolean {
     return this.hasErrors;
   }
@@ -91,10 +81,7 @@ export class Result<TData> {
   }
 
   // -------------------- Mutation helpers --------------------
-  /**
-   * Appends messages of another result into this one and updates the error flag in O(1).
-   * Does not modify `data`.
-   */
+  /** Appends messages of another result into this one and updates the error flag in O(1). */
   public includeMessages(result: Result<any>) {
     this.messages.push(...result.messages);
     // O(1) way to keep errors flag up-to-date
@@ -126,10 +113,7 @@ export class Result<TData> {
     return this.data;
   }
 
-  /**
-   * Returns the data or throws an Error if the data is `undefined`.
-   * Note: This is about presence of data, not success state.
-   */
+  /** Returns the data or throws an Error if the data is `undefined`. */
   public expect(message = 'Expected result data, but none was present'): TData {
     if (this.data === undefined) {
       throw new Error(message);
@@ -143,10 +127,7 @@ export class Result<TData> {
   }
 
   // -------------------- Functional helpers --------------------
-  /**
-   * Maps the wrapped data to a new type while preserving messages and error state.
-   * If the result has errors or no data, messages are forwarded and data stays `undefined`.
-   */
+  /** Maps the wrapped data to a new type while preserving messages and error state. */
   public map<TOut>(fn: (data: TData) => TOut): Result<TOut> {
     if (!this.isOk() || this.data === undefined) {
       const r = new Result<TOut>(undefined, [...this.messages]);
@@ -157,10 +138,7 @@ export class Result<TData> {
     return new Result<TOut>(fn(this.data), [...this.messages]);
   }
 
-  /**
-   * Chains another result-producing function. Messages are aggregated.
-   * If the current result has errors or no data, it short-circuits and forwards messages.
-   */
+  /** Chains another result-producing function. Messages are aggregated. */
   public flatMap<TOut>(fn: (data: TData) => Result<TOut>): Result<TOut> {
     if (!this.isOk() || this.data === undefined) {
       const r = new Result<TOut>(undefined, [...this.messages]);
@@ -180,10 +158,7 @@ export class Result<TData> {
   }
 
   // -------------------- Serialization --------------------
-  /**
-   * Stable JSON representation suitable for transport or logging.
-   * Shape: `{ ok: boolean, data?: TData, messages: Array<{ type, message, error? }>} }`
-   */
+  /** Stable JSON representation suitable for transport or logging. */
   public toJSON() {
     return {
       ok: this.isOk(),
@@ -210,16 +185,12 @@ export class Result<TData> {
     return new Result<TData>(undefined, [ResultMessage.error(message, error)]);
   }
 
-  /**
-   * Wraps a nullable/optional value; produces `ok` if present, `fail` otherwise.
-   */
+  /** Wraps a nullable/optional value; produces `ok` if present, `fail` otherwise. */
   public static fromNullable<TData>(value: TData | null | undefined, messageIfEmpty = 'Value is null or undefined'): Result<TData> {
     return value == null ? Result.fail<TData>(messageIfEmpty) : Result.ok<TData>(value);
   }
 
-  /**
-   * Converts a Promise to a `Result`, with optional mappers for value and error.
-   */
+  /** Converts a Promise to a `Result`, with optional mappers for value and error. */
   public static async fromPromise<TData, TErr = unknown>(
     promise: Promise<TData>,
     mapValue?: (value: TData) => TData,
@@ -249,19 +220,6 @@ export class Result<TData> {
    * - Error flag is maintained in O(1) per item by OR-ing child flags.
    * - Use when composing several independent computations and you want a single
    *   result envelope with aggregated diagnostics.
-   *
-   * Examples
-   * ```ts
-   * const a = Result.ok(1);
-   * const b = Result.fail<number>('Oops');
-   * const c = Result.ok(3);
-   *
-   * const arr = Result.combine([a, b, c]);
-   * // arr.isOk() === false, arr.getData() === [1, 3]
-   *
-   * const obj = Result.combine({ a, b, c });
-   * // obj.isOk() === false, obj.getData() === { a: 1, b: undefined, c: 3 }
-   * ```
    */
   public static combine<T extends Record<string, Result<any>>>(results: T): Result<{ [K in keyof T]: T[K] extends Result<infer D> ? D : never }>
   public static combine<T>(results: Result<T>[]): Result<T[]>

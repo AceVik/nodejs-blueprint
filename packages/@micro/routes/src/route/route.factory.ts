@@ -5,7 +5,7 @@ import type { RouteParams } from './param/route-params.type.js';
 import type { RouteAvailability, RouteOptions } from './route-options.type.js';
 import type { RouteParamType } from './param/route-param-types.type.js';
 import { Route } from './route.class.js';
-import { camelToKebab } from '../utils/camel-to-kebab.util.js';
+import { camelToKebab } from '../core/utils/camel-to-kebab.util.js';
 
 const empty = '';
 const emptyRequestMethod = empty as RequestMethod;

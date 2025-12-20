@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { tryImport } from '../../utils/try-import.util.js';
+import { tryImport } from '../../core/utils/try-import.util.js';
 import type { ResolvedMiddlewaresConfig } from './middlewares.factory.js';
 import { isResolvedMiddlewaresConfig } from './middlewares.factory.js';
 

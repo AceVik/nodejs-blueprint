@@ -1,5 +1,5 @@
 import type { RecognizedString } from 'uWebSockets.js';
-import { toRecognizedString } from '../../utils/index.js';
+import { toRecognizedString } from '../../core/utils/to-regignized-string.util.js';
 import type { HttpStatusCode } from './http-status-code.type.js';
 import { HttpStatus } from './http-status.enum.js';
 
