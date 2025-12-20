@@ -1,15 +1,13 @@
-import type { ZodType, ZodVoid } from 'zod';
 import type { Request } from '../request/index.js';
 import type { Response } from '../response/index.js';
 import type { Route } from '../../route/index.js';
 import type { Awaitable } from '../../types/index.js';
 import { Interceptor } from './interceptor.class.js';
-import type { InterceptorContextTools } from './interceptor.types.js';
 
 /**
  * Arguments passed to a ResponseInterceptor.
  */
-export type ResponseInterceptParams<S extends ZodType, In> = InterceptorContextTools<S> & {
+export type ResponseInterceptParams<In> = {
   req: Request;
   res: Response;
   route: Route<never>;
@@ -27,14 +25,14 @@ export type ResponseInterceptParams<S extends ZodType, In> = InterceptorContextT
  * @template In - The type of the result data coming into this interceptor.
  * @template Out - The type of the result data returned by this interceptor.
  */
-export abstract class ResponseInterceptor<S extends ZodType = ZodVoid, In = unknown, Out = unknown> extends Interceptor<S> {
+export abstract class ResponseInterceptor<In = unknown, Out = unknown> extends Interceptor<any> {
   /**
    * Executes the interceptor logic after the handler.
    *
    * @param params - Execution parameters including the result from the previous step.
    * @returns The potentially transformed result.
    */
-  abstract intercept(params: ResponseInterceptParams<S, In>): Awaitable<Out>;
+  abstract intercept(params: ResponseInterceptParams<In>): Awaitable<Out>;
 }
 
 /**
@@ -44,6 +42,6 @@ export abstract class ResponseInterceptor<S extends ZodType = ZodVoid, In = unkn
  * @param value - The object to check.
  * @returns True if the object is an instance of ResponseInterceptor.
  */
-export function isResponseInterceptor(value: unknown): value is ResponseInterceptor<ZodType> {
+export function isResponseInterceptor(value: unknown): value is ResponseInterceptor<any, any> {
   return value instanceof ResponseInterceptor;
 }

@@ -4,12 +4,11 @@ import type { Response } from '../response/index.js';
 import type { Route } from '../../route/index.js';
 import type { Awaitable } from '../../types/index.js';
 import { Interceptor } from './interceptor.class.js';
-import type { InterceptorContextTools } from './interceptor.types.js';
 
 /**
  * Arguments passed to a RequestInterceptor.
  */
-export type RequestInterceptParams<S extends ZodType> = InterceptorContextTools<S> & {
+export type RequestInterceptParams = {
   req: Request;
   res: Response;
   route: Route<never>;
@@ -22,7 +21,7 @@ export type RequestInterceptParams<S extends ZodType> = InterceptorContextTools<
 /**
  * Request interceptor handler.
  */
-export type RequestInterceptorHandler<S extends ZodType = ZodVoid> = (params: RequestInterceptParams<S>) => Awaitable<void>;
+export type RequestInterceptorHandler = (params: RequestInterceptParams) => Awaitable<void>;
 
 /**
  * Base class for interceptors that run BEFORE the route handler.
@@ -32,9 +31,9 @@ export class RequestInterceptor<S extends ZodType = ZodVoid> extends Interceptor
    * List of interceptors that must run before this one.
    * Used for execution ordering and metadata inheritance.
    */
-  public readonly dependencies = new Set<RequestInterceptor<any>>();
+  public readonly dependencies = new Set<RequestInterceptor>();
 
-  constructor(public readonly intercept: RequestInterceptorHandler<S>) {
+  constructor(public readonly intercept: RequestInterceptorHandler) {
     super();
   }
 
@@ -44,7 +43,7 @@ export class RequestInterceptor<S extends ZodType = ZodVoid> extends Interceptor
    *
    * @param parent - The interceptor that must run before this one.
    */
-  public after(parent: RequestInterceptor<any>): this {
+  public after(parent: RequestInterceptor): this {
     this.dependencies.add(parent);
     return this;
   }
@@ -57,6 +56,6 @@ export class RequestInterceptor<S extends ZodType = ZodVoid> extends Interceptor
  * @param value - The object to check.
  * @returns True if the object is an instance of RequestInterceptor.
  */
-export function isRequestInterceptor(value: unknown): value is RequestInterceptor<ZodType> {
+export function isRequestInterceptor(value: unknown): value is RequestInterceptor {
   return value instanceof RequestInterceptor;
 }

@@ -10,25 +10,22 @@ import {
 } from 'uWebSockets.js';
 import type { CreateRoutesAppOptions } from './create-routes-app-params.type.js';
 import { type Hostname, Route } from '../route/index.js';
-import { ErrorMiddleware, type NextFunction, type NextParams } from '../middleware/index.js';
-import { httpErrorMiddleware, serverErrorMiddleware } from '../middleware/error/presets/index.js';
-import { Request, Response } from '../http/index.js';
-import { HTTP_ERROR_MIDDLEWARE, SERVER_ERROR_MIDDLEWARE } from '../middleware/index.js';
+import { ErrorInterceptor, ErrorInterceptParams, isErrorInterceptor, Request, Response } from '../http/index.js';
 import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
 import { OpenApiGenerator } from '../openapi/openapi-generator.js';
 import { registerRouteWithApp } from './register-route.util.js';
-import type { ZodType } from 'zod';
 import {
+  isOmitted,
   type Interceptor,
   isRequestInterceptor,
   isResponseInterceptor,
   type RequestInterceptor,
   type ResponseInterceptor,
-} from '../http/interceptors/index.js';
+} from '../http/index.js';
 import { mergeInterceptors } from '../http/interceptors/interceptors.utils.js';
-import { isOmitted } from '../http/interceptors/omit.js';
 import type { RouteInterceptorDefinition } from '../route/route-interceptors.type.js';
 import { executeRoute } from './route-executor.js';
+import { ZodType } from 'zod';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 
@@ -44,15 +41,7 @@ export class RoutesApp {
 
   private _globalRequestInterceptors: RequestInterceptor<ZodType>[] = [];
   private _globalResponseInterceptors: ResponseInterceptor<ZodType>[] = [];
-
-  private _errorMiddlewares: Record<string | symbol, ErrorMiddleware> = {
-    [HTTP_ERROR_MIDDLEWARE]: httpErrorMiddleware,
-    [SERVER_ERROR_MIDDLEWARE]: serverErrorMiddleware,
-  };
-  private _errorMiddlewaresOrder: (string | symbol)[] = [
-    HTTP_ERROR_MIDDLEWARE,
-    SERVER_ERROR_MIDDLEWARE,
-  ];
+  private _globalErrorInterceptors: ErrorInterceptor<ZodType>[] = [];
 
   public get serverNames(): readonly Hostname[] {
     return this._serverNames;
@@ -60,10 +49,6 @@ export class RoutesApp {
 
   public get routes(): readonly Route<never>[] {
     return this._routes;
-  }
-
-  public get errorMiddlewares() {
-    return this._errorMiddlewares;
   }
 
   /**
@@ -119,27 +104,19 @@ export class RoutesApp {
    * @param items - The interceptors, error middlewares, or routes to register.
    * @returns The RoutesApp instance for chaining.
    */
-  public use(...items: (Interceptor<ZodType> | ErrorMiddleware | Route<never>)[]): this {
+  public use(...items: (Interceptor<any> | Route<never>)[]): this {
     for (const item of items) {
       if (item instanceof Route) {
         this.addRoute(item);
-      } else if (item instanceof ErrorMiddleware) {
-        this.addErrorMiddleware(item);
       } else if (isRequestInterceptor(item)) {
         this._globalRequestInterceptors.push(item);
       } else if (isResponseInterceptor(item)) {
         this._globalResponseInterceptors.push(item);
+      } else if (isErrorInterceptor(item)) {
+        this._globalErrorInterceptors.push(item);
       }
     }
     return this;
-  }
-
-  private addErrorMiddleware(emw: ErrorMiddleware) {
-    if (emw.name in this._errorMiddlewares) {
-      this._errorMiddlewaresOrder.splice(this._errorMiddlewaresOrder.indexOf(emw.name), 1);
-    }
-    this._errorMiddlewares[emw.name] = emw;
-    this._errorMiddlewaresOrder = [emw.name, ...this._errorMiddlewaresOrder];
   }
 
   private addRoute(route: Route<never>) {
@@ -168,8 +145,8 @@ export class RoutesApp {
     const self = this;
 
     return async function (rawRes: HttpResponse, rawReq: HttpRequest) {
-      let req: Request;
-      let res: Response;
+      let req: Request | undefined = undefined;
+      let res: Response | undefined = undefined;
 
       try {
         let onAbortedHandler: (() => void) | undefined;
@@ -182,7 +159,7 @@ export class RoutesApp {
         res = new Response(rawRes, rawReq);
 
         const coreHandler = async () => {
-          return await route.handleRequest(req, res, self, (handler) => {
+          return await route.handleRequest(req!, res!, self, (handler) => {
             onAbortedHandler = handler;
           });
         };
@@ -197,14 +174,37 @@ export class RoutesApp {
           }
         }
 
-      } catch (err: unknown) {
-        await self.runErrorMiddlewares(err, {
+      } catch (error: unknown) {
+        let runNext = false;
+        const next = () => {
+          runNext = true;
+        };
+
+        const params = {
+          error,
           route,
+          req,
+          res,
           rawRes,
           rawReq,
-          // @ts-expect-error TS2454: Legacy error handler support
-          res, req,
-        });
+          next,
+        } satisfies ErrorInterceptParams;
+
+
+        for (const errorInterceptor of route.errorInterceptors) {
+          runNext = false;
+
+          try {
+            await errorInterceptor.intercept(params);
+          } catch (interceptorError: unknown) {
+            params.error = interceptorError;
+            runNext = true;
+          }
+
+          if (!runNext) {
+            break;
+          }
+        }
       }
     };
   }
@@ -219,15 +219,19 @@ export class RoutesApp {
 
       const localRequestDefs: RouteInterceptorDefinition[] = [];
       const localResponseDefs: RouteInterceptorDefinition[] = [];
+      const localErrorDefs: RouteInterceptorDefinition[] = [];
 
       for (const def of localDefs) {
         if (isOmitted(def)) {
           localRequestDefs.push(def);
           localResponseDefs.push(def);
+          localErrorDefs.push(def);
         } else if (isRequestInterceptor(def)) {
           localRequestDefs.push(def);
         } else if (isResponseInterceptor(def)) {
           localResponseDefs.push(def);
+        } else if (isErrorInterceptor(def)) {
+          localErrorDefs.push(def);
         }
       }
 
@@ -242,9 +246,15 @@ export class RoutesApp {
         localResponseDefs,
       ) as ResponseInterceptor[];
 
+      const mergedErrorInterceptors = mergeInterceptors(
+        this._globalErrorInterceptors,
+        localErrorDefs,
+      ) as ErrorInterceptor[];
+
       // 2. Resolve Dependencies (DFS Topological Sort)
       route.beforeInterceptors = this.resolveInterceptorChain(mergedRequestInterceptors);
       route.afterInterceptors = this.resolveInterceptorChain(mergedResponseInterceptors);
+      route.errorInterceptors = this.resolveInterceptorChain(mergedErrorInterceptors);
     }
 
     this._interceptorsArePrecalculated = true;
@@ -283,24 +293,6 @@ export class RoutesApp {
     }
 
     return result;
-  }
-
-  private async runErrorMiddlewares(error: unknown, args: any) {
-    const middlewareNames = this._errorMiddlewaresOrder;
-    let index = 0;
-    const next: NextFunction = async (params?: NextParams) => {
-      if (index < middlewareNames.length) {
-        const name = middlewareNames[index++];
-        const currentMiddleware = this.errorMiddlewares[name!];
-        if (currentMiddleware) {
-          await currentMiddleware.handleError(error, { ...args, prevParams: params, next });
-        } else {
-          await next(params);
-        }
-      }
-    };
-
-    await next();
   }
 
   /**
@@ -366,6 +358,7 @@ export class RoutesApp {
   public async getOpenApiSchema(info: InfoObject): Promise<OpenAPIObject> {
     this.precalculateInterceptors();
     const generator = new OpenApiGenerator();
-    return generator.generate(info, this.routes, this.errorMiddlewares);
+    // TODO: Wire actual error middlewares registry when available.
+    return generator.generate(info, this.routes, {});
   }
 }

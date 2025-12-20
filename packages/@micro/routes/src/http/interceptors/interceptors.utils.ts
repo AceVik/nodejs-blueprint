@@ -1,41 +1,6 @@
-import type { z, ZodType } from 'zod';
-import type { Request } from '../request/index.js';
-import { Interceptor, isInterceptor } from './interceptor.class.js';
-import type { InterceptorContextTools } from './interceptor.types.js';
+import { type Interceptor, isInterceptor } from './interceptor.class.js';
 import type { RouteInterceptorDefinitions } from '../../route/route-interceptors.type.js';
 import { isOmitted } from './omit.js';
-
-/**
- * Creates the context tools (provide/resolve) for a specific interceptor instance.
- * These tools allow the interceptor to securely store data in the request context
- * and resolve dependencies from other interceptors with type safety.
- *
- * @template S - The schema type of the interceptor.
- * @param req - The current request object containing the context registry.
- * @param currentInterceptor - The interceptor instance currently being executed.
- * @returns The context tools bound to the current interceptor and request.
- */
-export function createInterceptorTools<S extends ZodType>(req: Request, currentInterceptor: Interceptor<S>): InterceptorContextTools<S> {
-  return {
-    provide: (data: z.input<S>) => {
-      if (!currentInterceptor.output) {
-        throw new Error(`Interceptor ${currentInterceptor.constructor.name} tries to provide data but has no output schema.`);
-      }
-      const parsed = currentInterceptor.output.parse(data);
-      // Use Request API to store context for the current interceptor
-      req.provide(currentInterceptor as unknown as Interceptor<ZodType>, parsed);
-    },
-
-    resolve: <T extends ZodType>(target: Interceptor<T>): z.output<T> => {
-      // Use Request API to fetch context provided by another interceptor
-      const data = req.resolve(target as unknown as Interceptor<ZodType>) as z.output<T> | undefined;
-      if (data === undefined) {
-        throw new Error(`Dependency missing: Data from ${target.constructor.name} not found in context.`);
-      }
-      return data as z.output<T>;
-    },
-  };
-}
 
 /**
  * Merges global interceptors with route-specific interceptors using a move/omit strategy.

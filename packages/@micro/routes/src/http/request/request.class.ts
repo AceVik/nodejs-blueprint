@@ -1,8 +1,7 @@
-import type { ZodType } from 'zod';
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
 import type { QueryParamsHandler, RequestMethod } from '../../http/index.js';
 import { CookieParamsHandler, HeadersHandler, PathParamsHandler } from './handlers/index.js';
-import type { Interceptor } from '../interceptors/interceptor.class.js';
+import { ContextContainer } from '../context/context-container.class.js';
 
 const dec = new TextDecoder('ascii');
 
@@ -11,39 +10,7 @@ const dec = new TextDecoder('ascii');
  * Provides convenient access to request properties like URL, method, headers, query and cookie parameters.
  * Also acts as a dependency injection container for Interceptors and Guards.
  */
-export class Request {
-  // -------------------------------------------------------------------------
-  // Context / Dependency Injection
-  // -------------------------------------------------------------------------
-
-  /**
-   * Internal storage for context data provided by interceptors.
-   * Key is the Interceptor instance, Value is the inferred Zod output.
-   */
-  private readonly _context = new Map<Interceptor<any>, any>();
-
-  /**
-   * Provides a value to the request context, bound to a specific interceptor.
-   *
-   * @template T - The type of the data, inferred from the interceptor's schema.
-   * @param interceptor - The interceptor instance acting as the key.
-   * @param value - The value to store.
-   */
-  public provide<T>(interceptor: Interceptor<ZodType<T>>, value: T): void {
-    this._context.set(interceptor, value);
-  }
-
-  /**
-   * Resolves a value from the request context provided by a specific interceptor.
-   *
-   * @template T - The type of the data, inferred from the interceptor's schema.
-   * @param interceptor - The interceptor instance acting as the key.
-   * @returns The typed value if present, otherwise undefined.
-   */
-  public resolve<T>(interceptor: Interceptor<ZodType<T>>): T | undefined {
-    return this._context.get(interceptor);
-  }
-
+export class Request extends ContextContainer {
   // -------------------------------------------------------------------------
   // Request Properties & Handlers
   // -------------------------------------------------------------------------
@@ -142,6 +109,7 @@ export class Request {
    * @param res - The raw uWebSockets.js HttpResponse (needed for address decoding).
    */
   constructor(private readonly req: HttpRequest, private readonly res: HttpResponse) {
+    super();
     this.path = new PathParamsHandler(req);
     this.headers = new HeadersHandler(req);
     this.cookies = new CookieParamsHandler(req);

@@ -13,7 +13,7 @@ import { Guard } from './guard.class.js';
  * @returns A configured Guard instance.
  */
 export function guard<S extends ZodType = ZodVoid>(
-  handler: RequestInterceptorHandler<S>,
+  handler: RequestInterceptorHandler,
 ): Guard<S> {
   return new Guard<S>(handler);
 }

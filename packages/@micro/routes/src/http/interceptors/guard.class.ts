@@ -26,7 +26,7 @@ export class Guard<S extends ZodType = ZodVoid> extends RequestInterceptor<S> {
   private _openapiParams?: GuardParams;
   private _securitySchemeName?: string;
 
-  constructor(handler: RequestInterceptorHandler<S>) {
+  constructor(handler: RequestInterceptorHandler) {
     super(handler);
   }
 
@@ -34,7 +34,7 @@ export class Guard<S extends ZodType = ZodVoid> extends RequestInterceptor<S> {
    * Declares a dependency.
    * Checks if the parent is a Guard to inherit its security scheme context immediately.
    */
-  public override after(parent: RequestInterceptor<any>): this {
+  public override after(parent: RequestInterceptor): this {
     super.after(parent);
     this.tryInheritScheme(parent);
     return this;
@@ -137,7 +137,7 @@ export class Guard<S extends ZodType = ZodVoid> extends RequestInterceptor<S> {
   /**
    * Attempts to extract the security scheme name from a potential parent Guard.
    */
-  private tryInheritScheme(parent: RequestInterceptor<any>) {
+  private tryInheritScheme(parent: RequestInterceptor) {
     if (isGuard(parent) && parent.schemeName) {
       this._securitySchemeName = parent.schemeName;
       // Optionally inherit the full params if needed for logic

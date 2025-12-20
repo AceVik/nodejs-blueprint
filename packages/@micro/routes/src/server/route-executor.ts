@@ -1,11 +1,5 @@
-import type { ZodType } from 'zod';
-import type { Request, Response } from '../http/index.js';
 import type { Route } from '../route/index.js';
-import {
-  type RequestInterceptor,
-  type ResponseInterceptor,
-} from '../http/interceptors/index.js';
-import { createInterceptorTools } from '../http/interceptors/interceptors.utils.js';
+import type { Request, Response, RequestInterceptor, ResponseInterceptor } from '../http/index.js';
 
 /**
  * Executes the chain of Request Interceptors (Before) and the Route Handler.
@@ -22,7 +16,7 @@ async function runRequestPhase(
   req: Request,
   res: Response,
   route: Route<never>,
-  interceptors: RequestInterceptor<ZodType>[],
+  interceptors: RequestInterceptor[],
   handler: () => Promise<unknown>,
 ): Promise<unknown> {
   let handlerResult: unknown;
@@ -36,13 +30,11 @@ async function runRequestPhase(
     }
 
     const interceptor = interceptors[index]!;
-    const tools = createInterceptorTools(req, interceptor);
 
     await interceptor.intercept({
       req,
       res,
       route,
-      ...tools,
       next: () => dispatch(index + 1),
     });
   };
@@ -71,20 +63,17 @@ async function runResponsePhase(
   req: Request,
   res: Response,
   route: Route<never>,
-  interceptors: ResponseInterceptor<ZodType>[],
+  interceptors: ResponseInterceptor[],
   initialResult: unknown,
 ): Promise<unknown> {
   let result = initialResult;
 
   for (const interceptor of interceptors) {
-    const tools = createInterceptorTools(req, interceptor);
-
     result = await interceptor.intercept({
       req,
       res,
       route,
       result,
-      ...tools,
     });
   }
 
@@ -111,7 +100,7 @@ export async function executeRoute(
     req,
     res,
     route,
-    route.beforeInterceptors as RequestInterceptor<ZodType>[],
+    route.beforeInterceptors,
     coreHandler,
   );
 
@@ -119,7 +108,7 @@ export async function executeRoute(
     req,
     res,
     route,
-    route.afterInterceptors as ResponseInterceptor<ZodType>[],
+    route.afterInterceptors,
     rawResult,
   );
 }
