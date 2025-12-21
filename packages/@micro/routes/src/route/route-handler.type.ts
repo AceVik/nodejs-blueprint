@@ -1,8 +1,8 @@
 import type { ZodType } from 'zod';
+import type { Awaitable } from '../core/index.js';
 import type { RoutesApp } from '../server/index.js';
 import type { Request, RequestInterceptor, Response } from '../http/index.js';
 import type { RouteParams, RouteParamValues } from './param/route-params.type.js';
-import type { Awaitable } from '../types/index.js';
 
 /**
  * Function signature for resolving dependency injection from interceptors.

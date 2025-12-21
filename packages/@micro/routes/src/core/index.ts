@@ -17,8 +17,8 @@ export type { NonNullableKeys } from './types/non-nullable-keys.type.js';
 export type { JsonPrimitive, JsonValue, JsonObject, JsonArray } from './types/json.types.js';
 
 // ---------- Result System ----------
-export { Result } from '../result/result.class.js';
-export { ResultMessage } from '../result/result-message.class.js';
+export { Result } from './result/result.class.js';
+export { ResultMessage } from './result/result-message.class.js';
 
 // ---------- Functional helpers ----------
 export { pipe } from './fn/pipe.js';

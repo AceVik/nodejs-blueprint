@@ -1,10 +1,20 @@
+import z from 'zod';
+import '../../setup/openapi.js';
+import type { Maybe } from '../types/maybe.type.js';
+
 /**
  * Result message types.
+ */
+/**
+ * All supported `ResultMessage` types (severity levels).
  */
 export const resultMessageTypes = ['info', 'warning', 'error'] as const;
 
 /**
  * Result message type.
+ */
+/**
+ * Union type of supported `ResultMessage` severities.
  */
 export type ResultMessageType = typeof resultMessageTypes[number];
 
@@ -19,6 +29,13 @@ export type ResultMessageType = typeof resultMessageTypes[number];
  * Design
  * - Discriminated union via `type` with values: `info | warning | error`.
  * - Immutable fields to keep messages safe for reuse and logging.
+ */
+/**
+ * Structured, machine-readable diagnostic message used by `Result`/`HttpResult`.
+ *
+ * Each instance carries a `type` (severity), a human-readable `message`, and an
+ * optional structured `error` payload for programmatic handling or logging.
+ * Use the static factories `info`, `warning`, and `error` to construct values.
  */
 export class ResultMessage<TType = ResultMessageType, TError = unknown> {
   /**
@@ -73,11 +90,53 @@ export class ResultMessage<TType = ResultMessageType, TError = unknown> {
   /**
    * Stable JSON representation suitable for transport and logging.
    */
-  public toJSON() {
+  public toJSON(): ResultMessageJson {
+    // Ensure the returned object conforms to the documented OpenAPI schema.
     return {
-      type: this.type,
+      type: this.type as ResultMessageType,
       message: this.message,
-      error: this.error,
-    } as const;
+      error: this.error as Maybe<Record<string, unknown>>,
+    } as ResultMessageJson;
   }
 }
+
+/**
+ * Zod schema for `ResultMessage` with OpenAPI metadata for documentation.
+ */
+export const ResultMessageSchema = z.object({
+  type: z.enum(resultMessageTypes).openapi({
+    description: 'Severity/type of the message',
+    example: 'warning',
+  }),
+  message: z.string().openapi({
+    description: 'Human-readable message text',
+    example: 'Validation failed for field `email`',
+  }),
+  error: z
+    .union([
+      z.string().openapi({ description: 'Error text or code', example: 'EMAIL_INVALID' }),
+      z
+        .record(z.string(), z.unknown())
+        .openapi({ description: 'Structured error payload with arbitrary fields' }),
+    ])
+    .optional()
+    .openapi({
+      description: 'Optional diagnostic payload (string code or structured object)',
+    }),
+})
+  .openapi(
+    'ResultMessage',
+    {
+      description: 'Diagnostic message attached to a Result/HttpResult',
+      examples: [
+        { type: 'info', message: 'User created' },
+        { type: 'warning', message: 'Deprecated API used' },
+        { type: 'error', message: 'Invalid payload', error: { field: 'email', reason: 'invalid' } },
+      ],
+    },
+  );
+
+/**
+ * Inferred JSON type for `ResultMessage.toJSON()` and transports.
+ */
+export type ResultMessageJson = z.infer<typeof ResultMessageSchema>;

@@ -7,7 +7,7 @@ import { OpenApiBase } from '../../openapi/openapi-base.class.js';
  *
  * @template S - The Zod schema type of the data this interceptor provides. Defaults to ZodVoid.
  */
-export abstract class Interceptor<S extends ZodType = ZodVoid> extends OpenApiBase{
+export abstract class Interceptor<S extends ZodType = ZodVoid> extends OpenApiBase {
   /**
    * The schema describing the data this interceptor provides to the context.
    */

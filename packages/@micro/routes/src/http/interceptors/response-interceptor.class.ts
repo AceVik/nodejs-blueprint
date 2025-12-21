@@ -1,7 +1,7 @@
 import type { Request } from '../request/index.js';
 import type { Response } from '../response/index.js';
 import type { Route } from '../../route/index.js';
-import type { Awaitable } from '../../types/index.js';
+import type { Awaitable } from '../../core/index.js';
 import { Interceptor } from './interceptor.class.js';
 
 /**

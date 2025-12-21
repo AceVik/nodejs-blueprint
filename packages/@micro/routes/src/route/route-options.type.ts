@@ -1,7 +1,6 @@
 import type { ZodType, ZodVoid } from 'zod';
 import type { RequestMethod } from '../http/index.js';
 import type { RouteParams } from './param/route-params.type.js';
-import type { ErrorMiddleware } from '../middleware/index.js';
 import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
 
 /**
@@ -74,20 +73,22 @@ export type RouteOptions<S extends RouteParams, R extends ZodType = ZodVoid> = {
 
   /**
    * Request method.
-   * Auto set by router/importRoutes if not set.
+   * Auto set by router/importRoutes if not set and auto imported. (Default: 'GET')
    */
   method?: RouteRequestMethod;
+
+  /**
+   * Request path.
+   * Auto set by router/importRoutes if not set and auto imported.
+   * Supports path parameters (e.g., '/users/:id').
+   */
+  path?: string;
 
   /**
    * Route params (path, query, headers, cookies).
    * Used for runtime validation and OpenAPI documentation.
    */
   params?: S;
-
-  /**
-   * Route error middlewares.
-   */
-  errorMiddlewares?: Record<string, ErrorMiddleware>;
 
   /**
    * Interceptors to use for this route.

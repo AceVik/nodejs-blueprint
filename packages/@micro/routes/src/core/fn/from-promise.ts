@@ -1,4 +1,4 @@
-import { Result } from '../../result/result.class.js';
+import { Result } from '../result/index.js';
 
 /**
  * Converts a Promise to a Result, with optional mappers for value and error.

@@ -22,7 +22,7 @@ import { ResultMessage } from './result-message.class.js';
  *   .addInfo('User sanitized');
  * ```
  */
-export class Result<TData> {
+export class Result<TData = unknown> {
   protected hasErrors = false;
 
   protected constructor(
@@ -37,6 +37,11 @@ export class Result<TData> {
   /** Returns a readonly view of all attached messages. */
   public getMessages(): readonly ResultMessage<unknown>[] {
     return this.messages;
+  }
+
+  /** Returns only error messages. */
+  public getErrorMessages(): readonly ResultMessage<'error'>[] {
+    return this.messages.filter((m) => m.isError()) as readonly ResultMessage<'error'>[];
   }
 
   /** Returns the wrapped data (if any) without unwrapping guarantees. */

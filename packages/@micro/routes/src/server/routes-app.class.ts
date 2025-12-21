@@ -10,7 +10,7 @@ import {
 } from 'uWebSockets.js';
 import type { CreateRoutesAppOptions } from './create-routes-app-params.type.js';
 import { type Hostname, Route } from '../route/index.js';
-import { ErrorInterceptor, ErrorInterceptParams, isErrorInterceptor, Request, Response } from '../http/index.js';
+import { Request, Response } from '../http/index.js';
 import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
 import { OpenApiGenerator } from '../openapi/openapi-generator.js';
 import { registerRouteWithApp } from './register-route.util.js';
@@ -25,7 +25,7 @@ import {
 import { mergeInterceptors } from '../http/interceptors/interceptors.utils.js';
 import type { RouteInterceptorDefinition } from '../route/route-interceptors.type.js';
 import { executeRoute } from './route-executor.js';
-import { ZodType } from 'zod';
+import type { ZodType } from 'zod';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 
@@ -41,7 +41,6 @@ export class RoutesApp {
 
   private _globalRequestInterceptors: RequestInterceptor<ZodType>[] = [];
   private _globalResponseInterceptors: ResponseInterceptor<ZodType>[] = [];
-  private _globalErrorInterceptors: ErrorInterceptor<ZodType>[] = [];
 
   public get serverNames(): readonly Hostname[] {
     return this._serverNames;
@@ -112,8 +111,6 @@ export class RoutesApp {
         this._globalRequestInterceptors.push(item);
       } else if (isResponseInterceptor(item)) {
         this._globalResponseInterceptors.push(item);
-      } else if (isErrorInterceptor(item)) {
-        this._globalErrorInterceptors.push(item);
       }
     }
     return this;
@@ -175,36 +172,7 @@ export class RoutesApp {
         }
 
       } catch (error: unknown) {
-        let runNext = false;
-        const next = () => {
-          runNext = true;
-        };
-
-        const params = {
-          error,
-          route,
-          req,
-          res,
-          rawRes,
-          rawReq,
-          next,
-        } satisfies ErrorInterceptParams;
-
-
-        for (const errorInterceptor of route.errorInterceptors) {
-          runNext = false;
-
-          try {
-            await errorInterceptor.intercept(params);
-          } catch (interceptorError: unknown) {
-            params.error = interceptorError;
-            runNext = true;
-          }
-
-          if (!runNext) {
-            break;
-          }
-        }
+        // TODO: Implement handle global error catch
       }
     };
   }
@@ -219,19 +187,15 @@ export class RoutesApp {
 
       const localRequestDefs: RouteInterceptorDefinition[] = [];
       const localResponseDefs: RouteInterceptorDefinition[] = [];
-      const localErrorDefs: RouteInterceptorDefinition[] = [];
 
       for (const def of localDefs) {
         if (isOmitted(def)) {
           localRequestDefs.push(def);
           localResponseDefs.push(def);
-          localErrorDefs.push(def);
         } else if (isRequestInterceptor(def)) {
           localRequestDefs.push(def);
         } else if (isResponseInterceptor(def)) {
           localResponseDefs.push(def);
-        } else if (isErrorInterceptor(def)) {
-          localErrorDefs.push(def);
         }
       }
 
@@ -246,15 +210,9 @@ export class RoutesApp {
         localResponseDefs,
       ) as ResponseInterceptor[];
 
-      const mergedErrorInterceptors = mergeInterceptors(
-        this._globalErrorInterceptors,
-        localErrorDefs,
-      ) as ErrorInterceptor[];
-
       // 2. Resolve Dependencies (DFS Topological Sort)
       route.beforeInterceptors = this.resolveInterceptorChain(mergedRequestInterceptors);
       route.afterInterceptors = this.resolveInterceptorChain(mergedResponseInterceptors);
-      route.errorInterceptors = this.resolveInterceptorChain(mergedErrorInterceptors);
     }
 
     this._interceptorsArePrecalculated = true;
@@ -358,7 +316,6 @@ export class RoutesApp {
   public async getOpenApiSchema(info: InfoObject): Promise<OpenAPIObject> {
     this.precalculateInterceptors();
     const generator = new OpenApiGenerator();
-    // TODO: Wire actual error middlewares registry when available.
-    return generator.generate(info, this.routes, {});
+    return generator.generate(info, this.routes);
   }
 }

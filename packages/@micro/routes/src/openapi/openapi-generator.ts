@@ -1,7 +1,6 @@
 import { OpenApiGeneratorV31, OpenAPIRegistry, type RouteConfig } from '@asteasolutions/zod-to-openapi';
 import { z, type ZodType } from 'zod';
 import type { Route, RouteParam } from '../route/index.js';
-import type { ErrorMiddleware } from '../middleware/index.js';
 import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
 import { RouteParamType } from '../route/param/route-param-types.type.js';
 import type { OpenApiExtenderHooks, OpenApiRouteExtender } from './types.js';
@@ -22,16 +21,11 @@ export class OpenApiGenerator {
    *
    * @param info - The general API information (title, version, etc.).
    * @param routes - The list of registered routes.
-   * @param errorMiddlewares - The map of registered error middlewares.
    * @returns The complete OpenAPI object.
    */
-  public async generate(info: InfoObject, routes: readonly Route<never>[], errorMiddlewares: Record<string | symbol, ErrorMiddleware>): Promise<OpenAPIObject> {
-    const allMiddlewares = this.getAllMiddlewares(errorMiddlewares);
-
-    this.registerSharedSchemas(allMiddlewares);
-
+  public async generate(info: InfoObject, routes: readonly Route<never>[]): Promise<OpenAPIObject> {
     for (const route of routes) {
-      await this.registerRoute(route, allMiddlewares);
+      await this.registerRoute(route);
     }
 
     const builder = new OpenApiGeneratorV31(this.registry.definitions);
@@ -41,29 +35,7 @@ export class OpenApiGenerator {
     });
   }
 
-  private getAllMiddlewares(middlewareMap: Record<string | symbol, ErrorMiddleware>): ErrorMiddleware[] {
-    return Reflect.ownKeys(middlewareMap)
-      .map((key) => middlewareMap[key as keyof typeof middlewareMap])
-      .filter((mw): mw is ErrorMiddleware => !!mw);
-  }
-
-  private registerSharedSchemas(middlewares: ErrorMiddleware[]) {
-    const registeredIds = new Set<string>();
-
-    for (const emw of middlewares) {
-      for (const schema of Object.values(emw.responses)) {
-        const def = (schema as any)._def;
-        const refId = def?.openapi?.refId ?? def?.openapi?.metadata?.refId;
-
-        if (refId && !registeredIds.has(refId)) {
-          this.registry.register(refId, schema);
-          registeredIds.add(refId);
-        }
-      }
-    }
-  }
-
-  private async registerRoute(route: Route<never>, middlewares: ErrorMiddleware[]) {
+  private async registerRoute(route: Route<never>) {
     const openApiPath = route.path.replace(/:([a-zA-Z0-9_]+)/g, '{$1}');
 
     // 1. Build Base Configuration
@@ -73,7 +45,6 @@ export class OpenApiGenerator {
       ...this.getRequestConfig(route),
       responses: {
         ...this.getSuccessResponse(route),
-        ...this.getErrorResponses(middlewares),
       },
     };
 
@@ -250,24 +221,5 @@ export class OpenApiGenerator {
 
   private calculateRequired(param: RouteParam<unknown, RouteParamType>): boolean {
     return !param.schema.safeParse(undefined).success;
-  }
-
-  private getErrorResponses(middlewares: ErrorMiddleware[]): RouteConfig['responses'] {
-    const responses: RouteConfig['responses'] = {};
-
-    for (const emw of middlewares) {
-      for (const [status, schema] of Object.entries(emw.responses)) {
-        responses[status] = {
-          description: `Error response for ${status}`,
-          content: {
-            'application/json': {
-              schema: schema as ZodType,
-            },
-          },
-        };
-      }
-    }
-
-    return responses;
   }
 }

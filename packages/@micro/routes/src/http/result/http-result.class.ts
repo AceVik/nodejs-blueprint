@@ -1,4 +1,4 @@
-import { Result } from '../../result/index.js';
+import { Result } from '../../core/index.js';
 import type { Response } from '../response/index.js';
 import type { HttpStatusCode } from '../status/index.js';
 
@@ -59,20 +59,20 @@ export class HttpResult<T> extends Result<T> {
     }
 
     switch (p.kind) {
-      case 'json':
-        // Response.json will set content-type if not set already
-        res.json(p.body);
-        return;
-      case 'text':
-        if (this.contentType) res.header('Content-Type', this.contentType);
-        res.send(p.body);
-        return;
-      case 'binary':
-        // Minimal binary support: encode to string for now (uWS requires RecognizedString).
-        // In the next step, we can add raw write/tryEnd for buffers.
-        if (this.contentType) res.header('Content-Type', this.contentType);
-        res.send(Buffer.from(p.body).toString('binary'));
-        return;
+    case 'json':
+      // Response.json will set content-type if not set already
+      res.json(p.body);
+      return;
+    case 'text':
+      if (this.contentType) res.header('Content-Type', this.contentType);
+      res.send(p.body);
+      return;
+    case 'binary':
+      // Minimal binary support: encode to string for now (uWS requires RecognizedString).
+      // In the next step, we can add raw write/tryEnd for buffers.
+      if (this.contentType) res.header('Content-Type', this.contentType);
+      res.send(Buffer.from(p.body).toString('binary'));
+      return;
     }
   }
 

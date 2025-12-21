@@ -6,7 +6,7 @@ import type { RoutesApp } from '../server/index.js';
 import type { RouteAvailability, RouteMeta, RouteRequestMethod } from './route-options.type.js';
 import type { HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
 import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
-import type { RequestInterceptor, ResponseInterceptor, ErrorInterceptor } from '../http/index.js';
+import type { RequestInterceptor, ResponseInterceptor } from '../http/index.js';
 import { OpenApiBase } from '../openapi/openapi-base.class.js';
 import { type OpenApiExtender, routeMeta } from '../openapi/index.js';
 
@@ -39,12 +39,6 @@ export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends O
    * Filled during application startup by the RoutesApp.
    */
   public afterInterceptors: ResponseInterceptor[] = [];
-
-  /**
-   * The stack of error interceptors configured for this route.
-   * Filled during application startup by the RoutesApp.
-   */
-  public errorInterceptors: ErrorInterceptor[] = [];
 
   /**
    * Optional schema to validate and type the handler's return value.

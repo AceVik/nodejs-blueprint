@@ -1,4 +1,4 @@
-import { Result } from '../../result/result.class.js';
+import { Result } from '../result/index.js';
 
 /**
  * Wraps a synchronous computation into a Result without throwing.

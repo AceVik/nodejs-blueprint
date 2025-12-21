@@ -11,11 +11,7 @@ export const RouteErrorSchema = z.object({
     description: 'The standard HTTP status phrase',
     example: 'Bad Request',
   }),
-  message: z.string().openapi({
-    description: 'A human-readable error message',
-    example: 'Input validation failed',
-  }),
-  errors: HttpErrorErrorsSchema,
+  messages: HttpErrorErrorsSchema,
 }).openapi(
   'RouteError',
   {

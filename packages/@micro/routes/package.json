@@ -7,11 +7,7 @@
   "exports": {
     ".": "./lib/index.js",
     "./core": "./lib/core/index.js",
-    "./utils": "./lib/utils/index.js",
     "./router": "./lib/router/index.js",
-    "./route": "./lib/route/index.js",
-    "./param": "./lib/route/param/index.js",
-    "./http": "./lib/http/index.js",
     "./openapi": "./lib/openapi/index.js"
   },
   "scripts": {

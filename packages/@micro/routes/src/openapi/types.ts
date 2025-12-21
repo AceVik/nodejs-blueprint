@@ -1,9 +1,8 @@
+import type { Awaitable } from '../core/index.js';
+import type { Route, RouteParam } from '../route/index.js';
 import type { OpenAPIRegistry, RouteConfig } from '@asteasolutions/zod-to-openapi';
-import { Awaitable } from '../types/index.js';
-import { RouteParamType } from '../route/param/route-param-types.type.js';
-import { RouteParamMeta } from '../route/param/route-param-meta.type.js';
-import { Route } from '../route/route.class.js';
-import { RouteParam } from '../route/param/route-param.class.js';
+import type { RouteParamType } from '../route/param/route-param-types.type.js';
+import type { RouteParamMeta } from '../route/param/route-param-meta.type.js';
 
 /**
  * The function that actually modifies the route configuration.
