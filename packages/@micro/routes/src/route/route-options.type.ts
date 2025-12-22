@@ -1,7 +1,8 @@
-import type { ZodType, ZodVoid } from 'zod';
+import { z, type ZodType } from 'zod';
 import type { RequestMethod } from '../http/index.js';
 import type { RouteParams } from './param/route-params.type.js';
 import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
+import type { ResponseDefinition } from './response-definition.class.js';
 
 /**
  * Defines the allowed HTTP methods for a route.
@@ -57,12 +58,34 @@ export type RouteMeta = RouteMetaBase & (
   );
 
 /**
+ * Definition for mapping HTTP Status Codes to response definitions.
+ * Values can be either a raw Zod Schema or a ResponseDefinition wrapper for metadata.
+ * Example: { 200: z.object(...), 404: defineResponse(z.object(...)).description('...') }
+ */
+export type RouteResponses = Record<number, ZodType<any> | ResponseDefinition<any>>;
+
+/**
+ * Utility type to infer the union of all possible return types defined in RouteResponses.
+ * Automatically unwraps ResponseDefinition to extract the underlying schema type.
+ * Yields `unknown` if R is undefined.
+ */
+export type InferResponseTypes<R extends RouteResponses | undefined> = R extends RouteResponses
+  ? {
+    [K in keyof R]: R[K] extends ResponseDefinition<infer S>
+      ? z.infer<S>
+      : R[K] extends ZodType
+        ? z.infer<R[K]>
+        : never;
+  }[keyof R]
+  : unknown;
+
+/**
  * Configuration options for creating a route.
  *
  * @template S - The shape of the route parameters.
- * @template R - The Zod schema for the response output.
+ * @template R - The map of allowed response schemas (Status Code -> Zod Schema).
  */
-export type RouteOptions<S extends RouteParams, R extends ZodType = ZodVoid> = {
+export type RouteOptions<S extends RouteParams, R extends RouteResponses> = {
   /**
    * Available for domains.
    * 'all': available for all given domains.
@@ -98,7 +121,8 @@ export type RouteOptions<S extends RouteParams, R extends ZodType = ZodVoid> = {
   use?: RouteInterceptorDefinitions;
 
   /**
-   * Optional Zod schema to validate and type the response output.
+   * Mapping of HTTP Status Codes to Zod Schemas.
+   * Defines strict return types for the handler and generates OpenAPI responses.
    */
-  output?: R;
+  responses?: R;
 };

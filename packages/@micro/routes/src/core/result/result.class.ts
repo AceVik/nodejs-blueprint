@@ -1,26 +1,14 @@
+import type { Maybe } from '../types/maybe.type.js';
 import { ResultMessage } from './result-message.class.js';
 
 /**
  * A lightweight result container that transports an optional data payload
  * together with a list of informational, warning, and error messages.
  *
- * Design goals:
- * - O(1) error-state checks via an internal flag updated on mutation
- * - Minimal allocations; pragmatic, mutable API for low overhead
- * - Functional helpers (`map`, `flatMap`, `tap`) to compose pipelines
- * - Simple JSON representation for transport/logging
+ * This class serves as the foundation for service-layer responses, strictly separating
+ * domain logic from transport layers like HTTP.
  *
- * Example
- * ```ts
- * const userRes = await Result.fromPromise(fetchUser(id));
- * if (!userRes.isOk()) {
- *   logger.warn(userRes.errors());
- *   return userRes.toJSON();
- * }
- * const safeUser = userRes
- *   .map(u => sanitize(u))
- *   .addInfo('User sanitized');
- * ```
+ * @template TData - The type of the data payload.
  */
 export class Result<TData = unknown> {
   protected hasErrors = false;
@@ -29,96 +17,130 @@ export class Result<TData = unknown> {
     protected data?: TData,
     protected messages: ResultMessage<unknown>[] = [],
   ) {
-    // O(1) update is handled by mutation methods; constructor derives from initial messages
-    this.hasErrors = this.messages.find((m) => m.isError()) !== undefined;
+    this.hasErrors = this.messages.some((m) => m.isError());
   }
 
-  // -------------------- Accessors --------------------
-  /** Returns a readonly view of all attached messages. */
+  /**
+   * Returns a readonly view of all attached messages.
+   */
   public getMessages(): readonly ResultMessage<unknown>[] {
     return this.messages;
   }
 
-  /** Returns only error messages. */
-  public getErrorMessages(): readonly ResultMessage<'error'>[] {
-    return this.messages.filter((m) => m.isError()) as readonly ResultMessage<'error'>[];
-  }
-
-  /** Returns the wrapped data (if any) without unwrapping guarantees. */
+  /**
+   * Returns the wrapped data without unwrap guarantees.
+   */
   public getData(): TData | undefined {
     return this.data;
   }
 
-  // -------------------- State queries --------------------
-  /** True when no error messages have been added/combined. O(1) backed flag. */
+  /**
+   * Checks if the result is successful (contains no error messages).
+   */
   public isOk(): this is Result<TData> {
     return !this.hasErrors;
   }
 
-  /** Convenience inverse of `isOk()`. */
+  /**
+   * Checks if the result has failed (contains at least one error message).
+   */
   public failed(): boolean {
     return this.hasErrors;
   }
 
-  /** Returns true if at least one warning is present. */
+  /**
+   * Checks if the result contains any warning messages.
+   */
   public hasWarnings(): boolean {
     return this.messages.some((m) => m.isWarning());
   }
 
-  /** Returns true if at least one info message is present. */
+  /**
+   * Checks if the result contains any info messages.
+   */
   public hasInfos(): boolean {
     return this.messages.some((m) => m.isInfo());
   }
 
-  /** Returns only error messages. */
+  /**
+   * Returns only error messages.
+   */
   public errors(): ResultMessage<'error'>[] {
     return this.messages.filter((m) => m.isError()) as ResultMessage<'error'>[];
   }
 
-  /** Returns only warning messages. */
+  /**
+   * Returns only warning messages.
+   */
   public warnings(): ResultMessage<'warning'>[] {
     return this.messages.filter((m) => m.isWarning()) as ResultMessage<'warning'>[];
   }
 
-  /** Returns only info messages. */
+  /**
+   * Returns only info messages.
+   */
   public infos(): ResultMessage<'info'>[] {
     return this.messages.filter((m) => m.isInfo()) as ResultMessage<'info'>[];
   }
 
-  // -------------------- Mutation helpers --------------------
-  /** Appends messages of another result into this one and updates the error flag in O(1). */
-  public includeMessages(result: Result<any>) {
+  /**
+   * Appends messages from another result into this instance.
+   * Updates the internal error state automatically.
+   *
+   * @param result - The result to merge messages from.
+   */
+  public includeMessages(result: Result<any>): void {
     this.messages.push(...result.messages);
-    // O(1) way to keep errors flag up-to-date
     this.hasErrors = this.hasErrors || result.hasErrors;
   }
 
-  /** Adds an info message. */
+  /**
+   * Adds an informational message.
+   *
+   * @param message - The text message.
+   */
   public addInfo(message: string): this {
     this.messages.push(ResultMessage.info(message));
     return this;
   }
 
-  /** Adds a warning message with optional structured payload. */
+  /**
+   * Adds a warning message with an optional structured payload.
+   *
+   * @param message - The text message.
+   * @param warning - Optional payload for structured logging or details.
+   */
   public addWarning<T = unknown>(message: string, warning?: T): this {
     this.messages.push(ResultMessage.warning(message, warning));
     return this;
   }
 
-  /** Adds an error message with optional structured payload and flips the error flag. */
+  /**
+   * Adds an error message with an optional structured payload.
+   * Immediately marks this result as failed.
+   *
+   * @param message - The text message.
+   * @param error - Optional payload for structured logging or details.
+   */
   public addError<T = unknown>(message: string, error?: T): this {
     this.messages.push(ResultMessage.error(message, error));
     this.hasErrors = true;
     return this;
   }
 
-  // -------------------- Unwrap helpers --------------------
-  /** Returns the data as-is (possibly `undefined`). */
+  /**
+   * Returns the data if present, otherwise returns undefined.
+   */
   public unwrap(): TData | undefined {
     return this.data;
   }
 
-  /** Returns the data or throws an Error if the data is `undefined`. */
+  /**
+   * Returns the data if present, otherwise throws an error.
+   *
+   * @param message - Custom error message if data is missing.
+   * @throws {Error}
+   */
   public expect(message = 'Expected result data, but none was present'): TData {
     if (this.data === undefined) {
       throw new Error(message);
@@ -126,28 +148,40 @@ export class Result<TData = unknown> {
     return this.data;
   }
 
-  /** Returns the data or a provided default value when data is `undefined`. */
+  /**
+   * Returns the data if present, otherwise returns the provided default value.
+   *
+   * @param defaultValue - The fallback value.
+   */
   public unwrapOr<TDefault = TData>(defaultValue: TDefault): TData | TDefault {
     return this.data ?? defaultValue;
   }
 
-  // -------------------- Functional helpers --------------------
-  /** Maps the wrapped data to a new type while preserving messages and error state. */
+  /**
+   * Maps the data to a new value using the provided function.
+   * Preserves existing messages and error state.
+   *
+   * @param fn - The transformation function.
+   */
   public map<TOut>(fn: (data: TData) => TOut): Result<TOut> {
     if (!this.isOk() || this.data === undefined) {
       const r = new Result<TOut>(undefined, [...this.messages]);
-      // hasErrors mirrors this.hasErrors
-      (r as any).hasErrors = this.hasErrors;
+      r.hasErrors = this.hasErrors;
       return r;
     }
     return new Result<TOut>(fn(this.data), [...this.messages]);
   }
 
-  /** Chains another result-producing function. Messages are aggregated. */
+  /**
+   * Maps the data to a new Result using the provided function.
+   * Merges messages from the produced result into the new result.
+   *
+   * @param fn - The function producing a new Result.
+   */
   public flatMap<TOut>(fn: (data: TData) => Result<TOut>): Result<TOut> {
     if (!this.isOk() || this.data === undefined) {
       const r = new Result<TOut>(undefined, [...this.messages]);
-      (r as any).hasErrors = this.hasErrors;
+      r.hasErrors = this.hasErrors;
       return r;
     }
     const next = fn(this.data);
@@ -156,46 +190,66 @@ export class Result<TData = unknown> {
     return combined;
   }
 
-  /** Runs a side-effect on this result and returns it unmodified. */
+  /**
+   * Executes a side-effect function on this result and returns the result unchanged.
+   * Useful for logging or debugging in a chain.
+   *
+   * @param fn - The side-effect function.
+   */
   public tap(fn: (self: Result<TData>) => void): this {
     fn(this);
     return this;
   }
 
-  // -------------------- Serialization --------------------
-  /** Stable JSON representation suitable for transport or logging. */
+  /**
+   * Serializes the result to a JSON-compatible object.
+   */
   public toJSON() {
     return {
       ok: this.isOk(),
-      data: this.data,
+      data: this.data as Maybe<TData>,
       messages: this.messages.map((m) => m.toJSON()),
     } as const;
   }
 
-  // -------------------- Factories --------------------
-  /** Creates a successful result with data. */
+  /**
+   * Creates a successful result with data.
+   */
   public static ok<TData>(data: TData): Result<TData> {
     return new Result<TData>(data);
   }
 
-  /** Creates a successful result with data and pre-attached messages. */
+  /**
+   * Creates a successful result with data and pre-existing messages.
+   */
   public static okWith<TData>(messages: ResultMessage<unknown>[], data: TData): Result<TData> {
     const r = new Result<TData>(data, [...messages]);
-    (r as any).hasErrors = messages.some((m) => (m as any).isError?.());
+    r.hasErrors = messages.some((m) => m.isError?.());
     return r;
   }
 
-  /** Creates a failed result with a single error message (optional structured payload). */
+  /**
+   * Creates a failed result with a single error message.
+   */
   public static fail<TData>(message: string, error?: unknown): Result<TData> {
     return new Result<TData>(undefined, [ResultMessage.error(message, error)]);
   }
 
-  /** Wraps a nullable/optional value; produces `ok` if present, `fail` otherwise. */
-  public static fromNullable<TData>(value: TData | null | undefined, messageIfEmpty = 'Value is null or undefined'): Result<TData> {
+  /**
+   * Creates a result from a nullable value.
+   * Returns Ok if the value is present, Fail if null/undefined.
+   */
+  public static fromNullable<TData>(
+    value: TData | null | undefined,
+    messageIfEmpty = 'Value is null or undefined',
+  ): Result<TData> {
     return value == null ? Result.fail<TData>(messageIfEmpty) : Result.ok<TData>(value);
   }
 
-  /** Converts a Promise to a `Result`, with optional mappers for value and error. */
+  /**
+   * Wraps a Promise into a Result.
+   * Catches any exceptions and converts them into a failed Result.
+   */
   public static async fromPromise<TData, TErr = unknown>(
     promise: Promise<TData>,
     mapValue?: (value: TData) => TData,
@@ -213,21 +267,14 @@ export class Result<TData = unknown> {
   /**
    * Combines multiple results into a single aggregated result.
    *
-   * Overloads
-   * - Array mode: `combine(Result<T>[]) -> Result<T[]>`
-   *   - Collects all messages, sets `ok` if none has errors,
-   *     returns an array of present data values (missing `undefined` values are skipped).
-   * - Object mode: `combine({ a: Result<A>, b: Result<B> }) -> Result<{ a: A | undefined, b: B | undefined }>`
-   *   - Collects all messages, sets `ok` if none has errors,
-   *     returns an object mapping keys to their respective data (may be `undefined`).
-   *
-   * Notes
-   * - Error flag is maintained in O(1) per item by OR-ing child flags.
-   * - Use when composing several independent computations and you want a single
-   *   result envelope with aggregated diagnostics.
+   * Supports both array inputs (`Result<T>[]`) and record inputs (`{ key: Result<T> }`).
+   * The returned result will contain all messages from all inputs.
+   * It will be marked as failed if any of the input results are failed.
    */
-  public static combine<T extends Record<string, Result<any>>>(results: T): Result<{ [K in keyof T]: T[K] extends Result<infer D> ? D : never }>
-  public static combine<T>(results: Result<T>[]): Result<T[]>
+  public static combine<T extends Record<string, Result<any>>>(
+    results: T
+  ): Result<{ [K in keyof T]: T[K] extends Result<infer D> ? D : never }>;
+  public static combine<T>(results: Result<T>[]): Result<T[]>;
   public static combine(arg: any): any {
     if (Array.isArray(arg)) {
       const messages: ResultMessage<unknown>[] = [];
@@ -239,11 +286,10 @@ export class Result<TData = unknown> {
         if (r.getData() !== undefined) data.push(r.getData());
       }
       const res = new Result<any[]>(data, messages);
-      (res as any).hasErrors = hasErrors;
+      res.hasErrors = hasErrors;
       return res;
     }
 
-    // object case
     const entries = Object.entries(arg as Record<string, Result<any>>);
     const messages: ResultMessage<unknown>[] = [];
     let hasErrors = false;
@@ -254,7 +300,7 @@ export class Result<TData = unknown> {
       out[k] = r.getData();
     }
     const res = new Result(out, messages);
-    (res as any).hasErrors = hasErrors;
+    res.hasErrors = hasErrors;
     return res as Result<any>;
   }
 }

@@ -1,9 +1,10 @@
 import { OpenApiGeneratorV31, OpenAPIRegistry, type RouteConfig } from '@asteasolutions/zod-to-openapi';
 import { z, type ZodType } from 'zod';
 import type { Route, RouteParam } from '../route/index.js';
-import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
+import type { InfoObject, OpenAPIObject, HeaderObject, ReferenceObject } from 'openapi3-ts/oas31';
 import { RouteParamType } from '../route/param/route-param-types.type.js';
 import type { OpenApiExtenderHooks, OpenApiRouteExtender } from './types.js';
+import { ResponseDefinition } from '../route/response-definition.class.js';
 
 /**
  * Generates OpenAPI 3.1 documentation from the registered routes and middlewares.
@@ -23,7 +24,7 @@ export class OpenApiGenerator {
    * @param routes - The list of registered routes.
    * @returns The complete OpenAPI object.
    */
-  public async generate(info: InfoObject, routes: readonly Route<never>[]): Promise<OpenAPIObject> {
+  public async generate(info: InfoObject, routes: readonly Route<any, any>[]): Promise<OpenAPIObject> {
     for (const route of routes) {
       await this.registerRoute(route);
     }
@@ -35,7 +36,7 @@ export class OpenApiGenerator {
     });
   }
 
-  private async registerRoute(route: Route<never>) {
+  private async registerRoute(route: Route<any, any>) {
     const openApiPath = route.path.replace(/:([a-zA-Z0-9_]+)/g, '{$1}');
 
     // 1. Build Base Configuration
@@ -44,7 +45,7 @@ export class OpenApiGenerator {
       path: openApiPath,
       ...this.getRequestConfig(route),
       responses: {
-        ...this.getSuccessResponse(route),
+        ...this.getResponses(route),
       },
     };
 
@@ -57,7 +58,7 @@ export class OpenApiGenerator {
   /**
    * Collects and executes all OpenAPI extenders from the Route and its Interceptors.
    */
-  private async applyOpenApiHooks(route: Route<never>, config: RouteConfig): Promise<RouteConfig> {
+  private async applyOpenApiHooks(route: Route<any, any>, config: RouteConfig): Promise<RouteConfig> {
     let currentConfig = { ...config };
     const routeExtenders: OpenApiRouteExtender[] = [];
 
@@ -94,7 +95,7 @@ export class OpenApiGenerator {
     return currentConfig;
   }
 
-  private getRequestConfig(route: Route<never>): Pick<RouteConfig, 'request'> {
+  private getRequestConfig(route: Route<any, any>): Pick<RouteConfig, 'request'> {
     const queryShape: Record<string, ZodType> = {};
     const headerShape: Record<string, ZodType> = {};
     const cookieShape: Record<string, ZodType> = {};
@@ -140,8 +141,13 @@ export class OpenApiGenerator {
     };
   }
 
-  private getSuccessResponse(route: Route<never>): RouteConfig['responses'] {
-    if (!route.output) {
+  /**
+   * Generates response definitions from route.responses mapping.
+   * Handles both raw Zod schemas and ResponseDefinition wrappers (headers, cookies).
+   */
+  private getResponses(route: Route<any, any>): RouteConfig['responses'] {
+    if (!route.responses) {
+      // Default fallback if no responses defined
       return {
         200: {
           description: 'Successful response',
@@ -149,16 +155,65 @@ export class OpenApiGenerator {
       };
     }
 
-    return {
-      200: {
-        description: 'Successful response',
+    const responses: RouteConfig['responses'] = {};
+
+    for (const [statusCode, definition] of Object.entries(route.responses)) {
+      let schema: ZodType;
+      let description = 'Response';
+      const headers: Record<string, HeaderObject | ReferenceObject> = {};
+
+      // Check if it's a ResponseDefinition (Metadata Wrapper) or a raw Zod Schema
+      if (definition instanceof ResponseDefinition) {
+        schema = definition.schema;
+        if (definition._meta.description) {
+          description = definition._meta.description;
+        }
+
+        // 1. Process Headers (Convert to Kebab-Case)
+        for (const [key, headerSchema] of Object.entries(definition._headers)) {
+          // camelCase to kebab-case conversion
+          const headerName = key.replace(/[A-Z]+(?![a-z])|[A-Z]/g, ($, ofs) => (ofs ? '-' : '') + $.toLowerCase());
+          headers[headerName] = {
+            schema: headerSchema,
+            description: headerSchema.description,
+          };
+        }
+
+        // 2. Process Cookies (Merge into 'Set-Cookie' header description)
+        if (Object.keys(definition._cookies).length > 0) {
+          const cookieDescriptions = Object.entries(definition._cookies)
+            .map(([name, cookieSchema]) => {
+              const desc = cookieSchema.description ? ` - ${cookieSchema.description}` : '';
+              return `* \`${name}\`${desc}`;
+            })
+            .join('\n');
+
+          headers['Set-Cookie'] = {
+            schema: { type: 'string' },
+            description: `Sets the following cookies:\n${cookieDescriptions}`,
+          };
+        }
+      } else {
+        // It is a raw Zod Schema
+        schema = definition;
+      }
+
+      // Check for 'format: binary' metadata (from zFile/zStream)
+      const isBinary = (schema as any)._def?.openapi?.metadata?.format === 'binary';
+      const contentType = isBinary ? 'application/octet-stream' : 'application/json';
+
+      responses[statusCode] = {
+        description: description,
+        headers: Object.keys(headers).length > 0 ? headers : undefined,
         content: {
-          'application/json': {
-            schema: route.output,
+          [contentType]: {
+            schema: schema as ZodType,
           },
         },
-      },
-    };
+      };
+    }
+
+    return responses;
   }
 
   private fillMissingPathParams(originalPath: string, pathShape: Record<string, ZodType>) {

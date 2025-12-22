@@ -1,108 +1,233 @@
+import { serialize, type SerializeOptions } from 'cookie';
+import type { Readable } from 'node:stream';
 import { Result } from '../../core/index.js';
-import type { Response } from '../response/index.js';
-import type { HttpStatusCode } from '../status/index.js';
-
-type JsonPayload<T> = { kind: 'json'; body: T };
-type TextPayload = { kind: 'text'; body: string };
-type BinaryPayload = { kind: 'binary'; body: Uint8Array };
-
-export type HttpPayload<T> = JsonPayload<T> | TextPayload | BinaryPayload;
+import { HttpStatus, type HttpStatusCode } from '../status/index.js';
+import { type RouteError } from '../../route/error.type.js';
+import { STATUS_PRIORITY } from './http-status-priority.const.js';
+import type { HttpErrorResolver } from './http-error-resolver.type.js';
+import type { HttpFileOptions, HttpStreamOptions } from './http-result-options.type.js';
 
 /**
- * HttpResult is a specialized `Result` for HTTP responses.
- *
- * Goals
- * - Provide a thin, efficient envelope to carry status, headers and body.
- * - Be backward-compatible with existing handler return types.
- * - Keep room for future streaming/file support without breaking changes.
+ * HttpResult is a pure data container for HTTP responses.
  */
 export class HttpResult<T> extends Result<T> {
-  /** HTTP status code to write (defaults to 200). */
-  public statusCode: HttpStatusCode = 200 as HttpStatusCode;
-  /** Mutable header bag written in `finalize()`. */
-  public headers: Record<string, string> = {};
-  /** Optional content-type override; if absent, sensible defaults are used. */
-  public contentType?: string;
-  /** Discriminated body payload. */
-  public payload?: HttpPayload<T>;
+  public statusCode: HttpStatusCode = HttpStatus.OK;
 
-  /** Sets status code. */
-  public status(code: HttpStatusCode): this { this.statusCode = code; return this; }
-  /** Sets/overwrites a header. */
-  public header(name: string, value: string): this { this.headers[name] = value; return this; }
-  /** Sets content type explicitly. */
-  public type(ct: string): this { this.contentType = ct; return this; }
-
-  /** Sets a JSON payload and content type. */
-  public json(body: T): this { this.payload = { kind: 'json', body }; if (!this.contentType) this.type('application/json'); return this; }
-  /** Sets a text payload and content type. */
-  public text(body: string): this { this.payload = { kind: 'text', body }; if (!this.contentType) this.type('text/plain; charset=utf-8'); return this; }
-  /** Sets a binary payload (buffer/bytes). */
-  public binary(body: Uint8Array, contentType?: string): this { this.payload = { kind: 'binary', body }; if (contentType) this.type(contentType); return this; }
+  // Lazy storage
+  private _headers?: Record<string, string>;
+  private _cookies?: string[];
+  private _contentType?: string;
 
   /**
-   * Writes headers/status/body using the existing Response helper.
-   * Designed to be minimal and fast; streaming/file support will be added in a later step.
+   * Specific options for stream handling (e.g. range/offset).
+   * Used by the runtime to configure the piping mechanism.
    */
-  public finalize(res: Response): void {
-    // Status
-    res.status(this.statusCode);
-    // Headers
-    for (const [k, v] of Object.entries(this.headers)) res.header(k, v);
+  public streamOptions?: HttpStreamOptions;
 
-    // Body
-    const p = this.payload;
-    if (!p) {
-      // No body; send empty response (204 if no content was intended, but keep chosen code)
-      res.send('');
-      return;
-    }
+  public get body(): T | undefined {
+    return this.data;
+  }
 
-    switch (p.kind) {
-    case 'json':
-      // Response.json will set content-type if not set already
-      res.json(p.body);
-      return;
-    case 'text':
-      if (this.contentType) res.header('Content-Type', this.contentType);
-      res.send(p.body);
-      return;
-    case 'binary':
-      // Minimal binary support: encode to string for now (uWS requires RecognizedString).
-      // In the next step, we can add raw write/tryEnd for buffers.
-      if (this.contentType) res.header('Content-Type', this.contentType);
-      res.send(Buffer.from(p.body).toString('binary'));
-      return;
-    }
+  public get headers(): Record<string, string> {
+    return this._headers || {};
+  }
+
+  public get cookies(): readonly string[] {
+    return this._cookies || [];
+  }
+
+  public get contentType(): string | undefined {
+    return this._contentType;
+  }
+
+  public status(code: HttpStatusCode): this {
+    this.statusCode = code;
+    return this;
+  }
+
+  public header(name: string, value: string): this {
+    if (!this._headers) this._headers = {};
+    this._headers[name] = value;
+    return this;
+  }
+
+  public type(contentType: string): this {
+    this._contentType = contentType;
+    return this.header('Content-Type', contentType);
+  }
+
+  public setCookie(name: string, value: string, options: SerializeOptions = {}): this {
+    if (!this._cookies) this._cookies = [];
+    if (options.path === undefined) options.path = '/';
+    this._cookies.push(serialize(name, value, options));
+    return this;
+  }
+
+  public clearCookie(name: string, options: SerializeOptions = {}): this {
+    if (!this._cookies) this._cookies = [];
+    const opts = { path: '/', ...options, expires: new Date(0) };
+    this._cookies.push(serialize(name, '', opts));
+    return this;
+  }
+
+  public attachment(filename?: string): this {
+    const value = filename ? `attachment; filename="${filename}"` : 'attachment';
+    return this.header('Content-Disposition', value);
+  }
+
+  public cache(maxAgeSeconds: number, mode: 'public' | 'private' = 'private'): this {
+    return this.header('Cache-Control', `${mode}, max-age=${maxAgeSeconds}`);
   }
 
   // ---------------- Factories ----------------
+
   public static override ok<T>(body: T): HttpResult<T> {
-    return new HttpResult<T>().status(200 as HttpStatusCode).json(body);
+    return new HttpResult<T>(body);
   }
 
-  public static noContent(): HttpResult<undefined> {
-    return new HttpResult<undefined>().status(204 as HttpStatusCode);
+  public static created<T>(body: T): HttpResult<T> {
+    const res = new HttpResult<T>(body);
+    res.statusCode = HttpStatus.CREATED;
+    return res;
   }
 
-  public static badRequest<T = unknown>(body?: T): HttpResult<T | undefined> {
-    const r = new HttpResult<T | undefined>().status(400 as HttpStatusCode);
-    if (body !== undefined) r.json(body as any);
-    return r;
+  public static noContent(): HttpResult<void> {
+    const res = new HttpResult<void>(undefined);
+    res.statusCode = HttpStatus.NO_CONTENT;
+    return res;
   }
 
-  public static internal<T = unknown>(body?: T): HttpResult<T | undefined> {
-    const r = new HttpResult<T | undefined>().status(500 as HttpStatusCode);
-    if (body !== undefined) r.json(body as any);
-    return r;
+  public static redirect(location: string, permanent = false): HttpResult<void> {
+    const res = new HttpResult<void>(undefined);
+    res.statusCode = permanent ? HttpStatus.MOVED_PERMANENTLY : HttpStatus.FOUND;
+    res.header('Location', location);
+    return res;
   }
-}
 
-// Type guards (duck-typing) to ease normalization later
-export function isResultLike(value: unknown): value is { getMessages: () => unknown[]; isOk: () => boolean } {
-  return !!value && typeof value === 'object' && 'getMessages' in value! && 'isOk' in value!;
-}
+  // ---------------- FILE Factory (Overloaded) ----------------
 
-export function isHttpResult<T = unknown>(value: unknown): value is HttpResult<T> {
-  return value instanceof HttpResult;
+  /**
+   * Retrieve file metadata from File object.
+   * Filename is optional and can be provided in options.
+   */
+  public static file(
+    content: File,
+    options?: HttpFileOptions
+  ): HttpResult<File>;
+
+  /**
+   * Retrieve file metadata from Blob object.
+   * Filename is optional and can be provided in options.
+   */
+  public static file(
+    content: Blob,
+    options: HttpFileOptions & { filename: string }
+  ): HttpResult<Blob>;
+
+  /**
+   * Retrieve file metadata from Buffer, Uint8Array, or string.
+   * Filename is required and cannot be provided in options.
+   */
+  public static file<T extends Uint8Array | string | Buffer>(
+    content: T,
+    options: HttpFileOptions & { filename: string }
+  ): HttpResult<T>;
+
+  /**
+   * Implementation
+   */
+  public static file(
+    content: File | Blob | Uint8Array | string | Buffer,
+    options: HttpFileOptions = {},
+  ): HttpResult<any> {
+    const res = new HttpResult(content);
+    res.statusCode = HttpStatus.OK;
+
+    const filename = options.filename ?? (content instanceof File ? content.name : undefined);
+    const contentType = options.contentType ?? (
+      (content instanceof Blob || content instanceof File) ? (content.type || undefined) : undefined
+    );
+
+    if (filename) {
+      res.attachment(filename);
+    }
+
+    if (contentType) {
+      res.type(contentType);
+    }
+
+    if (options.lastModified) {
+      res.header('Last-Modified', options.lastModified.toUTCString());
+    }
+
+    return res;
+  }
+
+  // ---------------- STREAM Factory ----------------
+
+  /**
+   * Creates a response that pipes a stream to the client.
+   * @param stream - The stream source (Node Readable or Web ReadableStream).
+   * @param options - Configuration for filename, content-type, and offsets.
+   */
+  public static stream(
+    stream: Readable | ReadableStream,
+    options: HttpStreamOptions = {},
+  ): HttpResult<Readable | ReadableStream> {
+    const res = new HttpResult(stream);
+    res.statusCode = HttpStatus.OK;
+
+    // Store options for the runtime (e.g. to handle piping logic with offsets)
+    res.streamOptions = options;
+
+    if (options.contentType) {
+      res.type(options.contentType);
+    }
+
+    if (options.filename) {
+      res.attachment(options.filename);
+    }
+
+    // Handle Range/Length headers automatically if provided
+    if (options.totalSize !== undefined) {
+      res.header('Content-Length', options.totalSize.toString());
+    }
+
+    if (options.offset !== undefined || options.end !== undefined) {
+      // Note: Usually the server handles the 'Content-Range' response header logic
+      // based on the request header, but if we enforce a specific range:
+      res.statusCode = HttpStatus.PARTIAL_CONTENT;
+      // The Runtime should ideally construct the full Content-Range header:
+      // bytes start-end/total
+    }
+
+    return res;
+  }
+
+  // ---------------- Error Handling ----------------
+
+  public static fromResult<T>(
+    result: Result<T>,
+    resolvers: Partial<Record<HttpStatusCode, HttpErrorResolver>> = {},
+  ): HttpResult<T | RouteError> {
+    const res = new HttpResult<T | RouteError>(result.getData());
+    res.includeMessages(result);
+
+    if (result.isOk()) {
+      return res;
+    }
+
+    res.statusCode = HttpStatus.BAD_REQUEST;
+
+    for (let i = 0; i < STATUS_PRIORITY.length; i++) {
+      const status = STATUS_PRIORITY[i]!;
+      const resolver = resolvers[status];
+      if (resolver && resolver(result)) {
+        res.statusCode = status;
+        break;
+      }
+    }
+
+    return res;
+  }
 }

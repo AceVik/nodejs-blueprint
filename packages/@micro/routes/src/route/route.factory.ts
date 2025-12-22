@@ -1,11 +1,11 @@
-import type { ZodType, ZodVoid } from 'zod';
+import type { ZodType } from 'zod';
 import type { RequestMethod } from '../http/index.js';
 import type { RouteHandler } from './route-handler.type.js';
 import type { RouteParams } from './param/route-params.type.js';
-import type { RouteAvailability, RouteOptions } from './route-options.type.js';
+import type { RouteAvailability, RouteOptions, RouteResponses } from './route-options.type.js';
 import type { RouteParamType } from './param/route-param-types.type.js';
 import { Route } from './route.class.js';
-import { camelToKebab } from '../core/utils/camel-to-kebab.util.js';
+import { camelToKebab } from '../core/index.js';
 
 const empty = '';
 const emptyRequestMethod = empty as RequestMethod;
@@ -13,33 +13,40 @@ const emptyRequestMethod = empty as RequestMethod;
 // Helper type for empty params to aid inference and avoid TS2742
 type EmptyParams = Record<never, never>;
 
+// Default Responses: If nothing is defined, allow any return type (fallback)
+type DefaultResponses = Record<number, ZodType<any>>;
+
 /**
  * Creates a new route definition with options.
+ * Infers RouteResponses (R) from options.responses automatically.
  *
- * @param options - The route options (params, method, availability, use, output).
+ * @param options - The route options (params, responses, method, etc.).
  * @param handler - The route handler function.
  * @returns A new Route instance.
  */
-export function route<S extends RouteParams, R extends ZodType = ZodVoid>(
+export function route<
+  S extends RouteParams,
+  R extends RouteResponses = DefaultResponses
+>(
   options: RouteOptions<S, R>,
-  handler: RouteHandler<S>
+  handler: RouteHandler<S, R>
 ): Route<S, R>;
 
 /**
  * Creates a new route definition without options (just a handler).
- * Infers params as empty to prevent type inference issues (TS2742).
+ * Infers params as empty and responses as default/any.
  *
  * @param handler - The route handler function.
  * @returns A new Route instance with empty params.
  */
-export function route<R extends ZodType = ZodVoid>(
-  handler: RouteHandler<EmptyParams>
-): Route<EmptyParams, R>;
+export function route(
+  handler: RouteHandler<EmptyParams, DefaultResponses>
+): Route<EmptyParams, DefaultResponses>;
 
 // Implementation
-export function route<S extends RouteParams, R extends ZodType = ZodVoid>(
-  optionsOrHandler: RouteOptions<S, R> | RouteHandler<S>,
-  handler?: RouteHandler<S>,
+export function route<S extends RouteParams, R extends RouteResponses>(
+  optionsOrHandler: RouteOptions<S, R> | RouteHandler<S, R>,
+  handler?: RouteHandler<S, R>,
 ): Route<S, R> {
   let hostnames: RouteAvailability = 'any';
 
@@ -84,7 +91,8 @@ export function route<S extends RouteParams, R extends ZodType = ZodVoid>(
       hostnames,
       optionsOrHandler.params,
       optionsOrHandler.use,
-      optionsOrHandler.output,
+      // Pass the responses map instead of the old 'output' schema
+      optionsOrHandler.responses,
     );
   }
 }

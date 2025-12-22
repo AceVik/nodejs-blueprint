@@ -15,6 +15,8 @@ export type { PickByValue } from './types/pick-by-value.type.js';
 export type { RequireAtLeastOne } from './types/require-at-least-one.type.js';
 export type { NonNullableKeys } from './types/non-nullable-keys.type.js';
 export type { JsonPrimitive, JsonValue, JsonObject, JsonArray } from './types/json.types.js';
+export type { Streamable } from './types/streamable.type.js';
+export type { Resultable } from './types/resultable.type.js';
 
 // ---------- Result System ----------
 export { Result } from './result/result.class.js';

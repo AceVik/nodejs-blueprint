@@ -1,27 +1,27 @@
-import { ZodError, type ZodType, type ZodVoid } from 'zod';
+import { ZodError } from 'zod';
+import type { RoutesApp } from '../server/index.js';
+import { type OpenApiExtender, routeMeta } from '../openapi/index.js';
 import { type Request, type Response, BadRequestError } from '../http/index.js';
+import type { RequestInterceptor, ResponseInterceptor } from '../http/index.js';
 import type { RouteHandler, RouteHandlerArgs } from './route-handler.type.js';
 import type { RouteParams, RouteParamValues } from './param/route-params.type.js';
-import type { RoutesApp } from '../server/index.js';
-import type { RouteAvailability, RouteMeta, RouteRequestMethod } from './route-options.type.js';
 import type { HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
 import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
-import type { RequestInterceptor, ResponseInterceptor } from '../http/index.js';
+import type { RouteAvailability, RouteMeta, RouteRequestMethod, RouteResponses } from './route-options.type.js';
 import { OpenApiBase } from '../openapi/openapi-base.class.js';
-import { type OpenApiExtender, routeMeta } from '../openapi/index.js';
 
 /**
  * Represents a defined route within the application.
  * Acts as a container for route configuration, parameter definitions, and interceptor stacks.
  *
  * @template S - The shape of the route parameters.
- * @template R - The Zod schema for the response output (optional).
+ * @template R - The map of allowed response schemas (Status Code -> Zod Schema).
  */
-export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends OpenApiBase {
+export class Route<S extends RouteParams, R extends RouteResponses> extends OpenApiBase {
   /**
    * The function to execute when this route is matched.
    */
-  public exec: RouteHandler<S>;
+  public exec: RouteHandler<S, R>;
 
   /**
    * Cached keys of the route parameters for performance optimization.
@@ -41,10 +41,10 @@ export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends O
   public afterInterceptors: ResponseInterceptor[] = [];
 
   /**
-   * Optional schema to validate and type the handler's return value.
-   * Used for runtime validation and OpenAPI response generation.
+   * Allowed response schemas mapped by status code.
+   * Used for runtime validation (optional) and OpenAPI response generation.
    */
-  public readonly output?: R;
+  public readonly responses?: R;
 
   /**
    * Creates a new Route instance.
@@ -56,21 +56,21 @@ export class Route<S extends RouteParams, R extends ZodType = ZodVoid> extends O
    * @param hostnames - The hostnames this route is available on.
    * @param params - Optional parameter definitions for validation and extraction.
    * @param interceptors - Optional list of interceptors (or omits) specific to this route.
-   * @param output - Optional Zod schema for the response.
+   * @param responses - Optional map of response schemas.
    */
   constructor(
     public readonly name: string,
     public readonly path: string,
     public readonly method: RouteRequestMethod,
-    handler: RouteHandler<S>,
+    handler: RouteHandler<S, R>,
     public readonly hostnames: RouteAvailability,
     public readonly params?: S,
     public readonly interceptors?: RouteInterceptorDefinitions,
-    output?: R,
+    responses?: R,
   ) {
     super();
     this.exec = handler;
-    this.output = output;
+    this.responses = responses;
     this.paramKeys = this.params ? Object.keys(this.params) : [];
   }
 
