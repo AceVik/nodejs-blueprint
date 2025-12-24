@@ -5,3 +5,4 @@ export * from './route-options.type.js';
 export * from './route-handler.type.js';
 export * from './param/index.js';
 export * from './response-definition.class.js';
+export * from './error.type.js';

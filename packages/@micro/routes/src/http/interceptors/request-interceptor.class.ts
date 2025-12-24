@@ -1,49 +1,60 @@
 import type { ZodType, ZodVoid } from 'zod';
-import type { Request } from '../request/index.js';
-import type { Response } from '../response/index.js';
-import type { Route } from '../../route/index.js';
 import type { Awaitable } from '../../core/index.js';
-import { Interceptor } from './interceptor.class.js';
+import { type InterceptBaseParams, Interceptor } from './interceptor.class.js';
 
 /**
- * Arguments passed to a RequestInterceptor.
+ * Arguments passed to the interceptor handler.
  */
-export type RequestInterceptParams = {
-  req: Request;
-  res: Response;
-  route: Route<never>;
+export type RequestInterceptParams = InterceptBaseParams & {
   /**
-   * Proceeds to the next interceptor or the route handler.
+   * Proceed to the next interceptor or handler.
    */
   next: () => Awaitable<void>;
 };
 
 /**
- * Request interceptor handler.
+ * The specific function signature for request interceptors.
  */
 export type RequestInterceptorHandler = (params: RequestInterceptParams) => Awaitable<void>;
 
 /**
- * Base class for interceptors that run BEFORE the route handler.
+ * Interceptor that runs BEFORE the route handler.
+ * Used for Context Creation, Authentication, Guards, Logging, etc.
+ *
+ * @template S - The Zod schema type of the data this interceptor provides to the ContextContainer.
  */
-export class RequestInterceptor<S extends ZodType = ZodVoid> extends Interceptor<S> {
+export class RequestInterceptor<S extends ZodType = ZodVoid> extends Interceptor<RequestInterceptorHandler> {
   /**
    * List of interceptors that must run before this one.
-   * Used for execution ordering and metadata inheritance.
+   * Specific to RequestInterceptor to ensure semantic correctness (cannot depend on ResponseInterceptor).
    */
-  public readonly dependencies = new Set<RequestInterceptor>();
+  public readonly dependencies = new Set<RequestInterceptor<any>>();
 
-  constructor(public readonly intercept: RequestInterceptorHandler) {
-    super();
+  /**
+   * Schema of the data injected into the context.
+   * This is unique to RequestInterceptor (Dependency Injection).
+   */
+  public readonly output?: S;
+
+  /**
+   * Creates a new RequestInterceptor.
+   *
+   * @param handler - The execution logic.
+   * @param output - Optional Zod schema defining what this interceptor provides.
+   */
+  constructor(
+    handler: RequestInterceptorHandler,
+    output?: S,
+  ) {
+    super(handler);
+    this.output = output;
   }
 
   /**
-   * Declares that this interceptor depends on another interceptor.
-   * This ensures execution order and, for Guards, inherits configuration context.
-   *
-   * @param parent - The interceptor that must run before this one.
+   * Declares that this interceptor depends on another request interceptor.
+   * The dependency will be executed before this interceptor.
    */
-  public after(parent: RequestInterceptor): this {
+  public after(parent: RequestInterceptor<any>): this {
     this.dependencies.add(parent);
     return this;
   }
@@ -51,11 +62,7 @@ export class RequestInterceptor<S extends ZodType = ZodVoid> extends Interceptor
 
 /**
  * Type guard to check if a value is a RequestInterceptor.
- * Validates against the class instance and narrows the type to a RequestInterceptor with any valid Zod schema.
- *
- * @param value - The object to check.
- * @returns True if the object is an instance of RequestInterceptor.
  */
-export function isRequestInterceptor(value: unknown): value is RequestInterceptor {
+export function isRequestInterceptor<S extends ZodType = ZodVoid>(value: unknown): value is RequestInterceptor<S> {
   return value instanceof RequestInterceptor;
 }

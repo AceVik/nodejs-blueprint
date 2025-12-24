@@ -231,3 +231,7 @@ export class HttpResult<T> extends Result<T> {
     return res;
   }
 }
+
+export function isHttpResult<T = unknown>(value: unknown): value is HttpResult<T> {
+  return value instanceof HttpResult;
+}

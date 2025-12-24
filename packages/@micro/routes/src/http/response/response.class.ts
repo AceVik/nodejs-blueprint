@@ -1,51 +1,34 @@
 import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
-import { getStatusPhrase, type HttpStatusCode } from '../status/index.js';
+import { Readable } from 'node:stream';
+import { getStatusPhrase } from '../status/index.js';
+import type { HttpResult } from '../result/http-result.class.js';
 
 /**
  * Wrapper around the uWebSockets.js HttpResponse.
- * Provides a fluent interface for constructing responses, managing headers,
- * and handling state (aborted/done) safely.
+ * Acts as a dumb executor that pushes HttpResult data to the wire.
+ * optimized for single-syscall operations via corking.
  */
 export class Response {
   private _aborted = false;
   private _done = false;
-  private _contentType: string | undefined = undefined;
 
-  /**
-   * Gets the raw uWebSockets.js HttpResponse object.
-   */
   public get raw(): HttpResponse {
     return this.res;
   }
 
-  /**
-   * Indicates if the request was aborted by the client (e.g. closed connection).
-   */
   public get aborted(): boolean {
     return this._aborted;
   }
 
-  /**
-   * Indicates if the response has already been sent/finished.
-   */
   public get done(): boolean {
     return this._done;
   }
 
-  /**
-   * Creates a new Response instance.
-   * Registers the abortion handler immediately to track connection state.
-   *
-   * @param res - The raw uWebSockets.js HttpResponse.
-   * @param req - The raw uWebSockets.js HttpRequest.
-   */
   constructor(
     private readonly res: HttpResponse,
-    // @ts-expect-error TS6138: Property req is declared but its value is never read.
+    // @ts-expect-error TS6138: Kept for potential internal usage / debugging
     private readonly req: HttpRequest,
   ) {
-    // Track abortion immediately.
-    // Note: If you overwrite onAborted later in the route, you must ensure you maintain this state tracking.
     this.res.onAborted(() => {
       this._aborted = true;
       this._done = true;
@@ -53,76 +36,111 @@ export class Response {
   }
 
   /**
-   * Sets the HTTP status code and status message.
-   *
-   * @param statusCode - The HTTP status code.
-   * @returns The Response instance for chaining.
+   * The main method to send a response.
+   * Takes the HttpResult container and writes it to the socket.
    */
-  public status(statusCode: HttpStatusCode): this {
-    if (this._done || this._aborted) return this;
+  public sendResult(result: HttpResult<unknown>): void {
+    if (this._done || this._aborted) return;
 
-    this.res.cork(() => {
-      this.res.writeStatus(`${statusCode} ${getStatusPhrase(statusCode)}`);
-    });
-    return this;
-  }
+    const body = result.body;
 
-  /**
-   * Sets a response header.
-   *
-   * @param key - The header name.
-   * @param value - The header value.
-   * @returns The Response instance for chaining.
-   */
-  public header(key: string, value: string): this {
-    if (this._done || this._aborted) return this;
-
-    if (key.toLowerCase() === 'content-type') {
-      this._contentType = value;
+    // ---------------------------------------------------------
+    // Case A: Streams (Cannot be fully corked sync)
+    // ---------------------------------------------------------
+    if (body instanceof Readable || body instanceof ReadableStream) {
+      // Cork only the headers part
+      this.res.cork(() => {
+        this.writeStatusAndHeaders(result);
+      });
+      this.pipeStream(body as Readable);
+      return;
     }
 
+    // ---------------------------------------------------------
+    // Case B: Atomic Sync Response (The Happy Path)
+    // ---------------------------------------------------------
     this.res.cork(() => {
-      this.res.writeHeader(key, value);
-    });
-    return this;
-  }
+      // 1. Write Metadata
+      this.writeStatusAndHeaders(result);
 
-  /**
-   * Serializes an object to JSON, sets the Content-Type header, and sends the response.
-   *
-   * @param body - The object to serialize.
-   */
-  public json(body: unknown): void {
-    if (this._done || this._aborted) return;
-
-    const json = JSON.stringify(body);
-
-    this.res.cork(() => {
-      if (!this._contentType) {
-        this.res.writeHeader('Content-Type', 'application/json');
+      // 2. Write Body & End
+      if (body === undefined || body === null) {
+        this.res.end();
       }
-      this.res.end(json);
+      else if (typeof body === 'string') {
+        this.res.end(body);
+      }
+      else if (body instanceof Uint8Array || Buffer.isBuffer(body)) {
+        this.res.end(body);
+      }
+      else {
+        // Fallback: If an interceptor didn't serialize the object yet, we force JSON.
+        // This prevents the request from hanging on developer error.
+        this.res.end(JSON.stringify(body));
+      }
     });
 
     this._done = true;
   }
 
   /**
-   * Sends a raw string body and ends the response.
-   * Sets 'Content-Type' to 'text/plain' if not already set.
-   *
-   * @param body - The response body string.
+   * Helper to write status, headers and cookies inside a cork block.
    */
-  public send(body: string): void {
+  private writeStatusAndHeaders(result: HttpResult<unknown>): void {
+    // 1. Status
+    this.res.writeStatus(`${result.statusCode} ${getStatusPhrase(result.statusCode)}`);
+
+    // 2. Headers
+    const headers = result.headers;
+    for (const key in headers) {
+      const val = headers[key];
+      if (val) this.res.writeHeader(key, val);
+    }
+
+    // 3. Cookies
+    const cookies = result.cookies;
+    const len = cookies.length;
+    if (len > 0) {
+      for (let i = 0; i < len; i++) {
+        this.res.writeHeader('Set-Cookie', cookies[i]!);
+      }
+    }
+  }
+
+  /**
+   * Pipes a Node.js Readable stream to uWebSockets.
+   */
+  private pipeStream(stream: Readable): void {
     if (this._done || this._aborted) return;
 
-    this.res.cork(() => {
-      if (!this._contentType) {
-        this.res.writeHeader('Content-Type', 'text/plain');
+    stream.on('data', (chunk) => {
+      if (this._aborted) {
+        stream.destroy();
+        return;
       }
-      this.res.end(body);
+
+      const arrayBuffer = chunk instanceof Buffer
+        ? chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength)
+        : chunk;
+
+      this.res.cork(() => {
+        this.res.write(arrayBuffer);
+      });
     });
 
-    this._done = true;
+    stream.on('end', () => {
+      if (!this._aborted && !this._done) {
+        this.res.cork(() => this.res.end());
+      }
+      this._done = true;
+    });
+
+    stream.on('error', () => {
+      if (!this._done && !this._aborted) {
+        // Try to close connection if header was already sent
+        this.res.close();
+      }
+      this._done = true;
+    });
   }
 }

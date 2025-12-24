@@ -1,0 +1,1 @@
+export * from './response-json-serializer.interceptor.js';

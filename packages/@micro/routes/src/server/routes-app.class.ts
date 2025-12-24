@@ -8,10 +8,12 @@ import {
   TemplatedApp,
   type AppOptions,
 } from 'uWebSockets.js';
-import type { CreateRoutesAppOptions } from './create-routes-app-params.type.js';
-import { type Hostname, Route } from '../route/index.js';
-import { Request, Response } from '../http/index.js';
+import type { ZodType } from 'zod';
 import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
+
+import type { CreateRoutesAppOptions } from './create-routes-app-params.type.js';
+import { type Hostname, Route, type RouteError } from '../route/index.js';
+import { Request, Response, HttpResult, isHttpResult, HttpError, HttpStatus, getStatusPhrase } from '../http/index.js';
 import { OpenApiGenerator } from '../openapi/openapi-generator.js';
 import { registerRouteWithApp } from './register-route.util.js';
 import {
@@ -25,7 +27,10 @@ import {
 import { mergeInterceptors } from '../http/interceptors/interceptors.utils.js';
 import type { RouteInterceptorDefinition } from '../route/route-interceptors.type.js';
 import { executeRoute } from './route-executor.js';
-import type { ZodType } from 'zod';
+import { ResultMessage } from '../core/index.js';
+
+// Note: You should export this from your index or import it from the created file location
+import { ContentNegotiationInterceptor } from '../http/interceptors/defaults/content-negotiation.interceptor.js';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 
@@ -41,6 +46,8 @@ export class RoutesApp {
 
   private _globalRequestInterceptors: RequestInterceptor<ZodType>[] = [];
   private _globalResponseInterceptors: ResponseInterceptor<ZodType>[] = [];
+
+  private _interceptorsArePrecalculated = false;
 
   public get serverNames(): readonly Hostname[] {
     return this._serverNames;
@@ -59,6 +66,10 @@ export class RoutesApp {
     const { ...appOptions } = this.options || {};
     const useSSL = !!(appOptions.key_file_name && appOptions.cert_file_name);
     this.rawApp = useSSL ? SSLApp(appOptions) : App(appOptions);
+
+    // Register default global interceptors
+    // This handles the "Request determines Response" logic (Accept header -> JSON/Text)
+    this._globalResponseInterceptors.push(new ContentNegotiationInterceptor());
 
     process.on('SIGINT', () => {
       this.rawApp.close();
@@ -116,6 +127,56 @@ export class RoutesApp {
     return this;
   }
 
+  /**
+   * Starts listening on the specified port.
+   */
+  public listen(port: number, cb: UWSListenCallback): RoutesApp;
+  /**
+   * Starts listening on the specified host and port.
+   */
+  public listen(host: RecognizedString, port: number, cb: UWSListenCallback): RoutesApp;
+  public listen(hostOrPort: RecognizedString | number, portOrCb: number | UWSListenCallback, cb?: UWSListenCallback): RoutesApp {
+    this.precalculateInterceptors();
+
+    if (typeof hostOrPort === 'number') {
+      this.rawApp.listen(hostOrPort, portOrCb as UWSListenCallback);
+    } else {
+      this.rawApp.listen(hostOrPort, portOrCb as number, cb!);
+    }
+    return this;
+  }
+
+  /**
+   * Starts listening on the specified port with exclusive access.
+   */
+  public listenExclusive(port: number, cb: UWSListenCallback): RoutesApp {
+    this.precalculateInterceptors();
+    this.rawApp.listen(port, 1, cb);
+    return this;
+  }
+
+  /**
+   * Starts listening on a Unix socket.
+   */
+  public listenUnix(cb: UWSListenCallback, path: RecognizedString): RoutesApp {
+    this.precalculateInterceptors();
+    this.rawApp.listen_unix(cb, path);
+    return this;
+  }
+
+  /**
+   * Generates the OpenAPI 3.1 specification for the application.
+   */
+  public async getOpenApiSchema(info: InfoObject): Promise<OpenAPIObject> {
+    this.precalculateInterceptors();
+    const generator = new OpenApiGenerator();
+    return generator.generate(info, this.routes);
+  }
+
+  // -------------------------------------------------------------------------
+  // Internal Logic
+  // -------------------------------------------------------------------------
+
   private addRoute(route: Route<never>) {
     this._routes.push(route);
     const routeHandler = this.createRouteHandler(route);
@@ -138,46 +199,100 @@ export class RoutesApp {
     }
   }
 
+  /**
+   * Creates the core handler function for uWebSockets.js.
+   * Handles lifecycle: Setup -> Execution -> Normalization -> Sending -> Error Handling.
+   */
   private createRouteHandler(route: Route<never>) {
     const self = this;
 
     return async function (rawRes: HttpResponse, rawReq: HttpRequest) {
-      let req: Request | undefined = undefined;
-      let res: Response | undefined = undefined;
+      let req: Request | undefined;
+      let res: Response | undefined;
+      let onAbortedHandler: (() => void) | undefined;
+
+      // 1. Register Abort Handler (Critical for stability)
+      rawRes.onAborted(() => {
+        if (onAbortedHandler) onAbortedHandler();
+      });
 
       try {
-        let onAbortedHandler: (() => void) | undefined;
-
-        rawRes.onAborted(() => {
-          if (onAbortedHandler) onAbortedHandler();
-        });
-
+        // 2. Initialize Wrapper Classes
         req = new Request(rawReq, rawRes);
         res = new Response(rawRes, rawReq);
 
+        // 3. Define Core Logic (Handler + Interceptors)
         const coreHandler = async () => {
           return await route.handleRequest(req!, res!, self, (handler) => {
             onAbortedHandler = handler;
           });
         };
 
-        const finalResult = await executeRoute(req, res, route, coreHandler);
+        // 4. Execute Interceptor Chain
+        const rawResult = await executeRoute(req, res, route, coreHandler);
 
-        if (finalResult !== undefined && !res.done && !res.aborted) {
-          if (typeof finalResult === 'object') {
-            res.json(finalResult);
-          } else {
-            res.send(String(finalResult));
-          }
+        // 5. Normalize Result to HttpResult
+        // This ensures the Response class always receives a unified structure
+        let finalResult: HttpResult<unknown>;
+
+        if (isHttpResult(rawResult)) {
+          finalResult = rawResult;
+        } else {
+          // Wrap primitives or objects implicitly in 200 OK
+          finalResult = HttpResult.ok(rawResult);
         }
 
+        // 6. Send Response
+        // The Response class is "dumb" and optimized for single-syscall writing
+        res.sendResult(finalResult);
+
       } catch (error: unknown) {
-        // TODO: Implement handle global error catch
+        // 7. Global Error Handler
+        // If the response is already done or aborted, we cannot send an error.
+        if (res?.done || res?.aborted || (!res && rawRes.aborted)) {
+          console.error('Error after response sent/aborted:', error);
+          return;
+        }
+
+        // Determine Status and Message
+        // If it's a known HttpError (e.g., 404, 400), use its status. Otherwise 500.
+        const isHttpError = error instanceof HttpError;
+        const status = isHttpError ? error.status : HttpStatus.INTERNAL_SERVER_ERROR;
+        const statusPhrase = getStatusPhrase(status);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Create the standardized RouteError body
+        const errorBody: RouteError = {
+          status,
+          statusPhrase,
+          messages: [
+            ResultMessage.error(errorMessage, isHttpError ? error.errors : undefined),
+          ],
+        };
+
+        // Create Result Container
+        const errorResult = HttpResult.ok(errorBody).status(status);
+
+        // If 'res' was initialized, use it (safe).
+        // If 'res' failed to init (very rare constructor error), use raw fallback.
+        if (res) {
+          try {
+            res.sendResult(errorResult);
+          } catch (sendError) {
+            console.error('Failed to send error response:', sendError);
+            // Fallback: Force close to avoid hanging
+            if (!res.aborted) res.raw.close();
+          }
+        } else {
+          // Fallback if Request/Response class creation failed
+          rawRes.cork(() => {
+            rawRes.writeStatus(`${status} ${statusPhrase}`);
+            rawRes.end(JSON.stringify(errorBody));
+          });
+        }
       }
     };
   }
-
-  private _interceptorsArePrecalculated = false;
 
   private precalculateInterceptors() {
     if (this._interceptorsArePrecalculated) return;
@@ -220,21 +335,14 @@ export class RoutesApp {
 
   /**
    * Resolves dependencies for a list of interceptors using Depth-First Search.
-   * Ensures that parents are always executed before their children.
-   * Automatically injects missing dependencies into the chain.
-   *
-   * @param interceptors - The initial list of interceptors.
-   * @returns A new list with all dependencies resolved and ordered.
    */
   private resolveInterceptorChain<T extends Interceptor<any>>(interceptors: T[]): T[] {
     const visited = new Set<T>();
     const result: T[] = [];
 
     const visit = (interceptor: T) => {
-      // Avoid cycles and duplicates
       if (visited.has(interceptor)) return;
 
-      // Check if the interceptor has dependencies (e.g. RequestInterceptor)
       if ('dependencies' in interceptor && interceptor.dependencies instanceof Set) {
         for (const dep of (interceptor as any).dependencies) {
           visit(dep as T);
@@ -245,77 +353,10 @@ export class RoutesApp {
       result.push(interceptor);
     };
 
-    // Iterate through the explicit list
     for (const item of interceptors) {
       visit(item);
     }
 
     return result;
-  }
-
-  /**
-   * Starts listening on the specified port.
-   *
-   * @param port - The port to listen on.
-   * @param cb - Callback function when listening starts.
-   * @returns The RoutesApp instance.
-   */
-  public listen(port: number, cb: UWSListenCallback): RoutesApp;
-  /**
-   * Starts listening on the specified host and port.
-   *
-   * @param host - The host to listen on.
-   * @param port - The port to listen on.
-   * @param cb - Callback function when listening starts.
-   * @returns The RoutesApp instance.
-   */
-  public listen(host: RecognizedString, port: number, cb: UWSListenCallback): RoutesApp;
-  public listen(hostOrPort: RecognizedString | number, portOrCb: number | UWSListenCallback, cb?: UWSListenCallback): RoutesApp {
-    this.precalculateInterceptors();
-
-    if (typeof hostOrPort === 'number') {
-      this.rawApp.listen(hostOrPort, portOrCb as UWSListenCallback);
-    } else {
-      this.rawApp.listen(hostOrPort, portOrCb as number, cb!);
-    }
-    return this;
-  }
-
-  /**
-   * Starts listening on the specified port with exclusive access.
-   *
-   * @param port - The port to listen on.
-   * @param cb - Callback function when listening starts.
-   * @returns The RoutesApp instance.
-   */
-  public listenExclusive(port: number, cb: UWSListenCallback): RoutesApp {
-    this.precalculateInterceptors();
-    this.rawApp.listen(port, 1, cb);
-    return this;
-  }
-
-  /**
-   * Starts listening on a Unix socket.
-   *
-   * @param cb - Callback function when listening starts.
-   * @param path - The path to the Unix socket.
-   * @returns The RoutesApp instance.
-   */
-  public listenUnix(cb: UWSListenCallback, path: RecognizedString): RoutesApp {
-    this.precalculateInterceptors();
-    this.rawApp.listen_unix(cb, path);
-    return this;
-  }
-
-  /**
-   * Generates the OpenAPI 3.1 specification for the application.
-   *
-   * @param info - The API information object.
-   * @returns The OpenAPI specification object.
-   */
-  public async getOpenApiSchema(info: InfoObject): Promise<OpenAPIObject> {
-    this.precalculateInterceptors();
-    const generator = new OpenApiGenerator();
-    return generator.generate(info, this.routes);
   }
 }

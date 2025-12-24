@@ -151,6 +151,6 @@ export class Guard<S extends ZodType = ZodVoid> extends RequestInterceptor<S> {
 /**
  * Type guard to check if a value is a Guard instance.
  */
-export function isGuard(value: unknown): value is Guard<ZodType> {
+export function isGuard<S extends ZodType = ZodVoid>(value: unknown): value is Guard<S> {
   return value instanceof Guard;
 }

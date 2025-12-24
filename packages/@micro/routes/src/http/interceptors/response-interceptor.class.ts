@@ -1,47 +1,65 @@
-import type { Request } from '../request/index.js';
-import type { Response } from '../response/index.js';
-import type { Route } from '../../route/index.js';
-import type { Awaitable } from '../../core/index.js';
-import { Interceptor } from './interceptor.class.js';
+import type { Awaitable, Resultable } from '../../core/index.js';
+import { type InterceptBaseParams, Interceptor } from './interceptor.class.js';
 
 /**
  * Arguments passed to a ResponseInterceptor.
  */
-export type ResponseInterceptParams<In> = {
-  req: Request;
-  res: Response;
-  route: Route<never>;
+export type ResponseInterceptParams<In = Resultable> = InterceptBaseParams & {
   /**
    * The result returned by the route handler or the previous response interceptor.
+   * Can be modified, replaced, or returned as-is.
    */
   result: In;
 };
 
 /**
- * Base class for interceptors that run AFTER the route handler.
- * Used for Response Transformation, Serialization, Wrapping, and Logging (End).
+ * The specific function signature for response interceptors.
+ * Must return the transformed result (or Promise thereof).
+ */
+export type ResponseInterceptorHandler<In = Resultable, Out = Resultable> =
+  (params: ResponseInterceptParams<In>) => Awaitable<Out>;
+
+/**
+ * Interceptor that runs AFTER the route handler.
+ * Used for Response Transformation, Serialization, Wrapping, and Logging.
  *
- * @template S - The Zod schema type of the data this interceptor provides (rarely used for response interceptors).
  * @template In - The type of the result data coming into this interceptor.
  * @template Out - The type of the result data returned by this interceptor.
  */
-export abstract class ResponseInterceptor<In = unknown, Out = unknown> extends Interceptor<any> {
+export class ResponseInterceptor<In = Resultable, Out = Resultable>
+  extends Interceptor<ResponseInterceptorHandler<In, Out>>
+{
   /**
-   * Executes the interceptor logic after the handler.
-   *
-   * @param params - Execution parameters including the result from the previous step.
-   * @returns The potentially transformed result.
+   * List of interceptors that must run before this one.
+   * Specific to ResponseInterceptor to ensure semantic correctness.
    */
-  abstract intercept(params: ResponseInterceptParams<In>): Awaitable<Out>;
+  public readonly dependencies = new Set<ResponseInterceptor<any, any>>();
+
+  /**
+   * Creates a new ResponseInterceptor.
+   *
+   * @param handler - The execution logic (transforming In to Out).
+   */
+  constructor(handler: ResponseInterceptorHandler<In, Out>) {
+    super(handler);
+  }
+
+  /**
+   * Declares that this interceptor depends on another response interceptor.
+   * The dependency will be executed before this interceptor.
+   */
+  public after(dependency: ResponseInterceptor<any, any>): this {
+    this.dependencies.add(dependency);
+    return this;
+  }
 }
 
 /**
  * Type guard to check if a value is a ResponseInterceptor.
- * Validates against the class instance and narrows the type to a ResponseInterceptor with any valid Zod schema.
- *
- * @param value - The object to check.
- * @returns True if the object is an instance of ResponseInterceptor.
+ * Allows explicitly specifying expected In/Out types for stricter checks if needed.
  */
-export function isResponseInterceptor(value: unknown): value is ResponseInterceptor<any, any> {
+export function isResponseInterceptor<In = Resultable, Out = Resultable>(
+  value: unknown,
+): value is ResponseInterceptor<In, Out> {
   return value instanceof ResponseInterceptor;
 }

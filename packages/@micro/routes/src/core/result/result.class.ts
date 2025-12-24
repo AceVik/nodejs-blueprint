@@ -202,6 +202,16 @@ export class Result<TData = unknown> {
   }
 
   /**
+   * Unsafely replaces the data payload in-place.
+   * PERFORMANCE: Zero allocation. Changes the runtime type of the instance.
+   * WARNING: Old references to this object will assume the old type TData!
+   */
+  public morph<TNew>(newData: TNew): Result<TNew> {
+    (this as unknown as { data: unknown }).data = newData;
+    return this as unknown as Result<TNew>;
+  }
+
+  /**
    * Serializes the result to a JSON-compatible object.
    */
   public toJSON() {
