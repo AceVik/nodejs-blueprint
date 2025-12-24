@@ -1,5 +1,5 @@
-import type { Awaitable, Resultable } from '../../core/index.js';
-import { type InterceptBaseParams, Interceptor } from './interceptor.class.js';
+import type { Awaitable, Resultable } from '../../../core/index.js';
+import { type InterceptBaseParams, Interceptor } from '../interceptor.class.js';
 
 /**
  * Arguments passed to a ResponseInterceptor.

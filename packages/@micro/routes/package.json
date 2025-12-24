@@ -10,7 +10,8 @@
     "./core": "./lib/core/index.js",
     "./router": "./lib/router/index.js",
     "./openapi": "./lib/openapi/index.js",
-    "./http": "./lib/http/index.js"
+    "./http": "./lib/http/index.js",
+    "./http/presets": "./lib/http/presets.js"
   },
   "scripts": {
     "build": "rm -rf lib && tsc",

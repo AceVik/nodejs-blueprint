@@ -1,12 +1,20 @@
 import type { Maybe } from '../types/maybe.type.js';
+import type { ErrorCode, ErrorPayload } from './result-error.type.js';
 import { ResultMessage } from './result-message.class.js';
+import { CommonErrorCodes } from './presets.js';
+
+/**
+ * Represents a successful Result where data is guaranteed to be present (of type T).
+ * Used for type narrowing via isOk().
+ */
+export type SuccessResult<T> = Result<T> & {
+  unwrap(): T;
+  getData(): T;
+};
 
 /**
  * A lightweight result container that transports an optional data payload
  * together with a list of informational, warning, and error messages.
- *
- * This class serves as the foundation for service-layer responses, strictly separating
- * domain logic from transport layers like HTTP.
  *
  * @template TData - The type of the data payload.
  */
@@ -15,20 +23,22 @@ export class Result<TData = unknown> {
 
   protected constructor(
     protected data?: TData,
-    protected messages: ResultMessage<unknown>[] = [],
+    protected messages: ResultMessage[] = [],
   ) {
     this.hasErrors = this.messages.some((m) => m.isError());
   }
 
+  // --- Getters & Status Checks ---
+
   /**
-   * Returns a readonly view of all attached messages.
+   * Returns a readonly list of all messages attached to this result.
    */
-  public getMessages(): readonly ResultMessage<unknown>[] {
+  public getMessages(): readonly ResultMessage[] {
     return this.messages;
   }
 
   /**
-   * Returns the wrapped data without unwrap guarantees.
+   * Returns the data payload, which may be undefined if the result failed.
    */
   public getData(): TData | undefined {
     return this.data;
@@ -36,8 +46,9 @@ export class Result<TData = unknown> {
 
   /**
    * Checks if the result is successful (contains no error messages).
+   * Narrowing: If true, TypeScript treats this as a SuccessResult where unwrap() returns TData.
    */
-  public isOk(): this is Result<TData> {
+  public isOk(): this is SuccessResult<TData> {
     return !this.hasErrors;
   }
 
@@ -49,45 +60,32 @@ export class Result<TData = unknown> {
   }
 
   /**
-   * Checks if the result contains any warning messages.
+   * Returns all error messages.
    */
-  public hasWarnings(): boolean {
-    return this.messages.some((m) => m.isWarning());
+  public errors(): ResultMessage<'error', any>[] {
+    return this.messages.filter((m) => m.isError()) as ResultMessage<'error', any>[];
   }
 
   /**
-   * Checks if the result contains any info messages.
+   * Returns all warning messages.
    */
-  public hasInfos(): boolean {
-    return this.messages.some((m) => m.isInfo());
+  public warnings(): ResultMessage<'warning', any>[] {
+    return this.messages.filter((m) => m.isWarning()) as ResultMessage<'warning', any>[];
   }
 
   /**
-   * Returns only error messages.
+   * Returns all informational messages.
    */
-  public errors(): ResultMessage<'error'>[] {
-    return this.messages.filter((m) => m.isError()) as ResultMessage<'error'>[];
+  public infos(): ResultMessage<'info', any>[] {
+    return this.messages.filter((m) => m.isInfo()) as ResultMessage<'info', any>[];
   }
 
-  /**
-   * Returns only warning messages.
-   */
-  public warnings(): ResultMessage<'warning'>[] {
-    return this.messages.filter((m) => m.isWarning()) as ResultMessage<'warning'>[];
-  }
-
-  /**
-   * Returns only info messages.
-   */
-  public infos(): ResultMessage<'info'>[] {
-    return this.messages.filter((m) => m.isInfo()) as ResultMessage<'info'>[];
-  }
+  // --- Modification Methods ---
 
   /**
    * Appends messages from another result into this instance.
-   * Updates the internal error state automatically.
-   *
-   * @param result - The result to merge messages from.
+   * Updates the error status if the included result contained errors.
+   * * @param result - The other result to merge.
    */
   public includeMessages(result: Result<any>): void {
     this.messages.push(...result.messages);
@@ -96,50 +94,92 @@ export class Result<TData = unknown> {
 
   /**
    * Adds an informational message.
-   *
-   * @param message - The text message.
+   * @param message - The message text.
+   * @param title - Optional title or summary.
    */
-  public addInfo(message: string): this {
-    this.messages.push(ResultMessage.info(message));
+  public addInfo(message: string, title?: string): this {
+    this.messages.push(ResultMessage.info(message, title));
     return this;
   }
 
   /**
-   * Adds a warning message with an optional structured payload.
-   *
-   * @param message - The text message.
-   * @param warning - Optional payload for structured logging or details.
+   * Adds a warning message.
+   * @param message - The warning text.
+   * @param title - Optional title.
+   * @param payload - Optional structured payload (must contain a code if provided).
    */
-  public addWarning<T = unknown>(message: string, warning?: T): this {
-    this.messages.push(ResultMessage.warning(message, warning));
+  public addWarning<T = unknown>(
+    message: string,
+    title?: string,
+    payload?: ErrorPayload<T>,
+  ): this {
+    this.messages.push(ResultMessage.warning(message, title, payload));
     return this;
   }
 
   /**
-   * Adds an error message with an optional structured payload.
-   * Immediately marks this result as failed.
-   *
-   * @param message - The text message.
-   * @param error - Optional payload for structured logging or details.
+   * Adds an error message using a structured ErrorPayload.
+   * @param message - The error text.
+   * @param payload - The structured error payload containing code and details.
+   * @param title - Optional title.
    */
-  public addError<T = unknown>(message: string, error?: T): this {
-    this.messages.push(ResultMessage.error(message, error));
+  public addError<T = unknown>(
+    message: string,
+    payload: ErrorPayload<T>,
+    title?: string,
+  ): this;
+
+  /**
+   * Adds an error message using individual arguments (DX friendly).
+   * @param message - The error text.
+   * @param code - The error code (string or ErrorCode).
+   * @param title - Optional title.
+   * @param details - Optional details object.
+   */
+  public addError<T = unknown>(
+    message: string,
+    code: ErrorCode | string,
+    title?: string,
+    details?: T,
+  ): this;
+
+  /**
+   * Implementation of addError.
+   */
+  public addError<T = unknown>(
+    message: string,
+    codeOrPayload: ErrorCode | string | ErrorPayload<T> = CommonErrorCodes.INTERNAL_ERROR,
+    title?: string,
+    details?: T,
+  ): this {
+    if (typeof codeOrPayload === 'object' && codeOrPayload !== null) {
+      // Signature 1: Payload object passed
+      const payload = codeOrPayload as ErrorPayload<T>;
+      this.messages.push(ResultMessage.error(message, payload, title));
+    } else {
+      // Signature 2: Code string passed
+      const code = codeOrPayload as ErrorCode;
+      this.messages.push(
+        ResultMessage.error(message, { code, details }, title),
+      );
+    }
     this.hasErrors = true;
     return this;
   }
 
+  // --- Unwrapping & Transformation ---
+
   /**
-   * Returns the data if present, otherwise returns undefined.
+   * Returns the data if present, otherwise undefined.
    */
   public unwrap(): TData | undefined {
     return this.data;
   }
 
   /**
-   * Returns the data if present, otherwise throws an error.
-   *
-   * @param message - Custom error message if data is missing.
-   * @throws {Error}
+   * Returns the data if present, otherwise throws an Error.
+   * * @param message - The error message to throw if data is missing.
+   * @throws Error if data is undefined.
    */
   public expect(message = 'Expected result data, but none was present'): TData {
     if (this.data === undefined) {
@@ -150,18 +190,16 @@ export class Result<TData = unknown> {
 
   /**
    * Returns the data if present, otherwise returns the provided default value.
-   *
-   * @param defaultValue - The fallback value.
+   * * @param defaultValue - The fallback value.
    */
   public unwrapOr<TDefault = TData>(defaultValue: TDefault): TData | TDefault {
     return this.data ?? defaultValue;
   }
 
   /**
-   * Maps the data to a new value using the provided function.
-   * Preserves existing messages and error state.
-   *
-   * @param fn - The transformation function.
+   * Maps the data of a successful result to a new value.
+   * If the result is a failure or empty, the errors are propagated to the new result.
+   * * @param fn - The mapping function.
    */
   public map<TOut>(fn: (data: TData) => TOut): Result<TOut> {
     if (!this.isOk() || this.data === undefined) {
@@ -173,10 +211,9 @@ export class Result<TData = unknown> {
   }
 
   /**
-   * Maps the data to a new Result using the provided function.
-   * Merges messages from the produced result into the new result.
-   *
-   * @param fn - The function producing a new Result.
+   * Maps the data of a successful result to a new Result.
+   * Messages from the inner result are merged into the returned result.
+   * * @param fn - The mapping function returning a Result.
    */
   public flatMap<TOut>(fn: (data: TData) => Result<TOut>): Result<TOut> {
     if (!this.isOk() || this.data === undefined) {
@@ -191,10 +228,9 @@ export class Result<TData = unknown> {
   }
 
   /**
-   * Executes a side-effect function on this result and returns the result unchanged.
-   * Useful for logging or debugging in a chain.
-   *
-   * @param fn - The side-effect function.
+   * Executes a side-effect function with the current result.
+   * Useful for logging or debugging without changing the result.
+   * * @param fn - The tap function.
    */
   public tap(fn: (self: Result<TData>) => void): this {
     fn(this);
@@ -202,9 +238,9 @@ export class Result<TData = unknown> {
   }
 
   /**
-   * Unsafely replaces the data payload in-place.
-   * PERFORMANCE: Zero allocation. Changes the runtime type of the instance.
-   * WARNING: Old references to this object will assume the old type TData!
+   * Morphs the result type to a new type by brute-force replacing the data.
+   * Useful for serialization or low-level transformations.
+   * * @param newData - The new data payload.
    */
   public morph<TNew>(newData: TNew): Result<TNew> {
     (this as unknown as { data: unknown }).data = newData;
@@ -212,7 +248,7 @@ export class Result<TData = unknown> {
   }
 
   /**
-   * Serializes the result to a JSON-compatible object.
+   * Converts the result to a JSON-serializable structure.
    */
   public toJSON() {
     return {
@@ -222,43 +258,107 @@ export class Result<TData = unknown> {
     } as const;
   }
 
+  // ---------------------------------------------------------------------------
+  // FACTORY METHODS
+  // ---------------------------------------------------------------------------
+
   /**
-   * Creates a successful result with data.
+   * Creates a successful result containing data.
+   * * @param data - The success payload.
    */
-  public static ok<TData>(data: TData): Result<TData> {
-    return new Result<TData>(data);
+  public static ok<TData>(data: TData): SuccessResult<TData> {
+    return new Result<TData>(data) as SuccessResult<TData>;
   }
 
   /**
-   * Creates a successful result with data and pre-existing messages.
+   * Creates a successful result with existing messages and data.
+   * @param messages - A list of messages to include.
+   * @param data - The success payload.
    */
-  public static okWith<TData>(messages: ResultMessage<unknown>[], data: TData): Result<TData> {
+  public static okWith<TData>(messages: ResultMessage[], data: TData): SuccessResult<TData> {
     const r = new Result<TData>(data, [...messages]);
-    r.hasErrors = messages.some((m) => m.isError?.());
+    r.hasErrors = messages.some((m) => m.isError());
+    return r as SuccessResult<TData>;
+  }
+
+  /**
+   * Creates a failed result with an error message and code.
+   * @param message - The error description.
+   * @param code - The error code (defaults to INTERNAL_ERROR).
+   * @param title - Optional error title.
+   * @param details - Optional structured details.
+   */
+  public static fail<TData>(
+    message: string,
+    code: ErrorCode | string = CommonErrorCodes.INTERNAL_ERROR,
+    title?: string,
+    details?: unknown,
+  ): Result<TData> {
+    const r = new Result<TData>();
+    r.addError(message, code, title, details);
     return r;
   }
 
   /**
-   * Creates a failed result with a single error message.
+   * Creates a failed result representing a "Not Found" error.
    */
-  public static fail<TData>(message: string, error?: unknown): Result<TData> {
-    return new Result<TData>(undefined, [ResultMessage.error(message, error)]);
+  public static notFound<TData>(
+    message = 'Resource not found',
+    title = 'Not Found',
+  ): Result<TData> {
+    return Result.fail(message, CommonErrorCodes.NOT_FOUND, title);
+  }
+
+  /**
+   * Creates a failed result representing a "Conflict" error (e.g. duplicate resource).
+   */
+  public static conflict<TData>(
+    message = 'Resource already exists',
+    title = 'Conflict',
+  ): Result<TData> {
+    return Result.fail(message, CommonErrorCodes.ALREADY_EXISTS, title);
+  }
+
+  /**
+   * Creates a failed result representing a validation error.
+   */
+  public static invalid<TData>(
+    message: string,
+    details?: unknown,
+    title = 'Validation Failed',
+  ): Result<TData> {
+    return Result.fail(message, CommonErrorCodes.VALIDATION_FAILED, title, details);
+  }
+
+  /**
+   * Creates a failed result representing a permission denied error.
+   */
+  public static forbidden<TData>(
+    message = 'Access denied',
+    title = 'Forbidden',
+  ): Result<TData> {
+    return Result.fail(message, CommonErrorCodes.PERMISSION_DENIED, title);
   }
 
   /**
    * Creates a result from a nullable value.
-   * Returns Ok if the value is present, Fail if null/undefined.
+   * Returns Ok if value is present, otherwise Fail (Not Found).
+   * @param value - The value to check.
+   * @param messageIfEmpty - Error message if value is null/undefined.
    */
   public static fromNullable<TData>(
     value: TData | null | undefined,
     messageIfEmpty = 'Value is null or undefined',
   ): Result<TData> {
-    return value == null ? Result.fail<TData>(messageIfEmpty) : Result.ok<TData>(value);
+    return value == null ? Result.notFound<TData>(messageIfEmpty) : Result.ok<TData>(value);
   }
 
   /**
-   * Wraps a Promise into a Result.
-   * Catches any exceptions and converts them into a failed Result.
+   * Creates a result from a Promise.
+   * Catches exceptions and converts them to a failed result.
+   * @param promise - The promise to await.
+   * @param mapValue - Optional function to transform the value.
+   * @param mapError - Optional function to transform the error.
    */
   public static async fromPromise<TData, TErr = unknown>(
     promise: Promise<TData>,
@@ -270,16 +370,14 @@ export class Result<TData = unknown> {
       return Result.ok(mapValue ? mapValue(v) : v);
     } catch (e) {
       const mapped = mapError ? mapError(e) : (e as TErr);
-      return Result.fail<TData>('Operation failed', mapped);
+      return Result.fail<TData>('Operation failed', CommonErrorCodes.INTERNAL_ERROR, 'Exception', mapped);
     }
   }
 
   /**
-   * Combines multiple results into a single aggregated result.
-   *
-   * Supports both array inputs (`Result<T>[]`) and record inputs (`{ key: Result<T> }`).
-   * The returned result will contain all messages from all inputs.
-   * It will be marked as failed if any of the input results are failed.
+   * Combines multiple results into a single result.
+   * If any input result failed, the combined result fails.
+   * * @param results - Array or Object of Results.
    */
   public static combine<T extends Record<string, Result<any>>>(
     results: T
@@ -287,7 +385,7 @@ export class Result<TData = unknown> {
   public static combine<T>(results: Result<T>[]): Result<T[]>;
   public static combine(arg: any): any {
     if (Array.isArray(arg)) {
-      const messages: ResultMessage<unknown>[] = [];
+      const messages: ResultMessage[] = [];
       let hasErrors = false;
       const data: any[] = [];
       for (const r of arg as Result<any>[]) {
@@ -301,7 +399,7 @@ export class Result<TData = unknown> {
     }
 
     const entries = Object.entries(arg as Record<string, Result<any>>);
-    const messages: ResultMessage<unknown>[] = [];
+    const messages: ResultMessage[] = [];
     let hasErrors = false;
     const out: Record<string, unknown> = {};
     for (const [k, r] of entries) {
@@ -314,3 +412,10 @@ export class Result<TData = unknown> {
     return res as Result<any>;
   }
 }
+
+/**
+ * Checks if the given value is a Result instance.
+ */
+export const isResult = <T = unknown>(value: unknown): value is Result<T> => {
+  return value instanceof Result;
+};

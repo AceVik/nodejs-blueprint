@@ -1,14 +1,10 @@
-import type { Interceptor } from '../http/interceptors/index.js';
-import type { OmitInterceptor } from '../http/interceptors/omit.js';
-import { type ZodVoid } from 'zod';
+import type { OmitInterceptor, RequestInterceptor, ResponseInterceptor } from '../http/index.js';
+
 
 /**
- * Represents a single item in the route's interceptor definition list.
- * Can be an active Interceptor or an instruction to Omit a global one.
+ * Defines what can be passed to route.use() or app.use().
  */
-export type RouteInterceptorDefinition = Interceptor<ZodVoid> | OmitInterceptor;
-
-/**
- * A readonly array of interceptor definitions for a route.
- */
-export type RouteInterceptorDefinitions = ReadonlyArray<RouteInterceptorDefinition>;
+export type RouteInterceptorDefinition =
+  | RequestInterceptor<any>
+  | ResponseInterceptor<any, any>
+  | OmitInterceptor;

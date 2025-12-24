@@ -2,7 +2,7 @@ import {
   ResponseInterceptor,
   type ResponseInterceptorHandler,
 } from './response-interceptor.class.js';
-import type { Resultable } from '../../core/index.js';
+import type { Resultable } from '../../../core/index.js';
 
 /**
  * Creates a generic ResponseInterceptor from a function.

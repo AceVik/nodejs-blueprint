@@ -1,21 +1,16 @@
 import type { ZodType, ZodVoid } from 'zod';
-import type { Awaitable } from '../../core/index.js';
-import { type InterceptBaseParams, Interceptor } from './interceptor.class.js';
+import type { Awaitable } from '../../../core/index.js';
+import { type InterceptBaseParams, Interceptor } from '../interceptor.class.js';
 
 /**
  * Arguments passed to the interceptor handler.
  */
-export type RequestInterceptParams = InterceptBaseParams & {
-  /**
-   * Proceed to the next interceptor or handler.
-   */
-  next: () => Awaitable<void>;
-};
+export type RequestInterceptParams = InterceptBaseParams & {};
 
 /**
  * The specific function signature for request interceptors.
  */
-export type RequestInterceptorHandler = (params: RequestInterceptParams) => Awaitable<void>;
+export type RequestInterceptorHandler = (params: RequestInterceptParams) => Awaitable<boolean | void>;
 
 /**
  * Interceptor that runs BEFORE the route handler.

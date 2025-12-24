@@ -30,7 +30,7 @@ import { executeRoute } from './route-executor.js';
 import { ResultMessage } from '../core/index.js';
 
 // Note: You should export this from your index or import it from the created file location
-import { ContentNegotiationInterceptor } from '../http/interceptors/defaults/content-negotiation.interceptor.js';
+import { ContentNegotiationInterceptor } from '../http/interceptors/response/defaults/content-negotiation.interceptor.js';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 

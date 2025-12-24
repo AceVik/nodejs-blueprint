@@ -1,8 +1,8 @@
 import type { ZodType, ZodVoid } from 'zod';
 import type { SecuritySchemeObject } from 'openapi3-ts/oas31';
 import type { GuardParams } from './guard.types.js';
-import { RequestInterceptor, type RequestInterceptorHandler } from './request-interceptor.class.js';
-import { type OpenApiExtender } from '../../openapi/index.js';
+import { RequestInterceptor, type RequestInterceptorHandler } from '../request-interceptor.class.js';
+import { type OpenApiExtender } from '../../../../openapi/index.js';
 
 /**
  * Configuration for defining an Authorization requirement (AuthZ).

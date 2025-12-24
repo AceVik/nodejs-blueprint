@@ -1,5 +1,5 @@
 import type { ZodType, ZodVoid } from 'zod';
-import type { RequestInterceptorHandler } from './request-interceptor.class.js';
+import type { RequestInterceptorHandler } from '../request-interceptor.class.js';
 import { Guard } from './guard.class.js';
 
 /**

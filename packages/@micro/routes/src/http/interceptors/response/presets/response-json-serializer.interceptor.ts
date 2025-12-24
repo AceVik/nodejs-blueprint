@@ -1,5 +1,6 @@
 import { responseInterceptor } from '../response-interceptor.factory.js';
-import { isHttpResult, isObjectBody } from '../../result/index.js';
+import { isHttpResult, isObjectBody } from '../../../result/index.js';
+import { resultNormalizer } from './result-normalizer.interceptor.js';
 
 /**
  * The default serializer.
@@ -11,15 +12,15 @@ export const responseJsonSerializer = responseInterceptor(({ result }) => {
     return result;
   }
 
-  const body = result.body;
+  const body = result.unwrap();
 
   if (!isObjectBody(body)) {
     return result;
   }
 
-  if (!result.contentType) {
+  if (!result.contentType?.length) {
     result.type('application/json');
   }
 
   return result.morph(JSON.stringify(body));
-});
+}).after(resultNormalizer);
