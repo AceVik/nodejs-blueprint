@@ -22,7 +22,7 @@ import {
   isRequestInterceptor,
   isResponseInterceptor,
   type RequestInterceptor,
-  type ResponseInterceptor, ResultableResponse,
+  type ResponseInterceptor, type ResultableResponse,
 } from '../http/index.js';
 import { OpenApiGenerator } from '../openapi/openapi-generator.js';
 import { registerRouteWithApp } from './register-route.util.js';

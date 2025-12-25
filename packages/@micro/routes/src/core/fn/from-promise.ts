@@ -1,4 +1,5 @@
 import { Result } from '../result/index.js';
+import { CommonErrorCodes } from '../result/presets.js';
 
 /**
  * Converts a Promise to a Result, with optional mappers for value and error.
@@ -13,6 +14,6 @@ export async function fromPromise<T, E = unknown>(
     return Result.ok(mapValue ? mapValue(v) : v);
   } catch (e) {
     const mapped = mapError ? mapError(e) : (e as E);
-    return Result.fail<T>('Operation failed', mapped);
+    return Result.fail<T>('Operation failed', CommonErrorCodes.INTERNAL_ERROR, 'Exception', mapped);
   }
 }

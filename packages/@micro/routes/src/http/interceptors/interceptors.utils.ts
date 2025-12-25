@@ -1,5 +1,5 @@
 import { type Interceptor, isInterceptor } from './interceptor.class.js';
-import type { RouteInterceptorDefinitions } from '../../route/route-interceptors.type.js';
+import type { RouteInterceptorDefinition } from '../../route/route-interceptors.type.js';
 import { isOmitted } from './omit.js';
 
 /**
@@ -17,7 +17,7 @@ import { isOmitted } from './omit.js';
  */
 export const mergeInterceptors = (
   globalInterceptors: ReadonlyArray<Interceptor<any>>,
-  routeInterceptors: RouteInterceptorDefinitions,
+  routeInterceptors: ReadonlyArray<RouteInterceptorDefinition>,
 ): ReadonlyArray<Interceptor<any>> => {
   const touchedGlobals = new Set<Interceptor<any>>();
   const routeLevelInterceptors: Interceptor<any>[] = [];

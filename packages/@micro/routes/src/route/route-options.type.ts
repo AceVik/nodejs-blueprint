@@ -1,7 +1,7 @@
 import { z, type ZodType } from 'zod';
 import type { RequestMethod } from '../http/index.js';
 import type { RouteParams } from './param/route-params.type.js';
-import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
+import type { RouteInterceptorDefinition } from './route-interceptors.type.js';
 import type { ResponseDefinition } from './response-definition.class.js';
 
 /**
@@ -118,7 +118,7 @@ export type RouteOptions<S extends RouteParams, R extends RouteResponses> = {
    * Executed in order: Request Interceptors -> Handler -> Response Interceptors.
    * Supports 'omit(interceptor)' to exclude global interceptors.
    */
-  use?: RouteInterceptorDefinitions;
+  use?: ReadonlyArray<RouteInterceptorDefinition>;
 
   /**
    * Mapping of HTTP Status Codes to Zod Schemas.

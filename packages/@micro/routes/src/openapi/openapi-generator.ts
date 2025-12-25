@@ -4,7 +4,7 @@ import type { Route, RouteParam } from '../route/index.js';
 import type { InfoObject, OpenAPIObject, HeaderObject, ReferenceObject } from 'openapi3-ts/oas31';
 import { RouteParamType } from '../route/param/route-param-types.type.js';
 import type { OpenApiExtenderHooks, OpenApiRouteExtender } from './types.js';
-import { ResponseDefinition } from '../route/response-definition.class.js';
+import { ResponseDefinition } from '../route/index.js';
 
 /**
  * Generates OpenAPI 3.1 documentation from the registered routes and middlewares.
@@ -24,7 +24,7 @@ export class OpenApiGenerator {
    * @param routes - The list of registered routes.
    * @returns The complete OpenAPI object.
    */
-  public async generate(info: InfoObject, routes: readonly Route<any, any>[]): Promise<OpenAPIObject> {
+  public async generate(info: InfoObject, routes: readonly Route<never, never>[]): Promise<OpenAPIObject> {
     for (const route of routes) {
       await this.registerRoute(route);
     }
@@ -36,7 +36,7 @@ export class OpenApiGenerator {
     });
   }
 
-  private async registerRoute(route: Route<any, any>) {
+  private async registerRoute(route: Route<never, never>) {
     const openApiPath = route.path.replace(/:([a-zA-Z0-9_]+)/g, '{$1}');
 
     // 1. Build Base Configuration
@@ -58,7 +58,7 @@ export class OpenApiGenerator {
   /**
    * Collects and executes all OpenAPI extenders from the Route and its Interceptors.
    */
-  private async applyOpenApiHooks(route: Route<any, any>, config: RouteConfig): Promise<RouteConfig> {
+  private async applyOpenApiHooks(route: Route<never, never>, config: RouteConfig): Promise<RouteConfig> {
     let currentConfig = { ...config };
     const routeExtenders: OpenApiRouteExtender[] = [];
 
@@ -95,7 +95,7 @@ export class OpenApiGenerator {
     return currentConfig;
   }
 
-  private getRequestConfig(route: Route<any, any>): Pick<RouteConfig, 'request'> {
+  private getRequestConfig(route: Route<never, never>): Pick<RouteConfig, 'request'> {
     const queryShape: Record<string, ZodType> = {};
     const headerShape: Record<string, ZodType> = {};
     const cookieShape: Record<string, ZodType> = {};
@@ -145,7 +145,7 @@ export class OpenApiGenerator {
    * Generates response definitions from route.responses mapping.
    * Handles both raw Zod schemas and ResponseDefinition wrappers (headers, cookies).
    */
-  private getResponses(route: Route<any, any>): RouteConfig['responses'] {
+  private getResponses(route: Route<never, never>): RouteConfig['responses'] {
     if (!route.responses) {
       // Default fallback if no responses defined
       return {
@@ -174,8 +174,8 @@ export class OpenApiGenerator {
           // camelCase to kebab-case conversion
           const headerName = key.replace(/[A-Z]+(?![a-z])|[A-Z]/g, ($, ofs) => (ofs ? '-' : '') + $.toLowerCase());
           headers[headerName] = {
-            schema: headerSchema,
-            description: headerSchema.description,
+            schema: headerSchema as unknown as any,
+            description: (headerSchema as any).description,
           };
         }
 
@@ -195,7 +195,7 @@ export class OpenApiGenerator {
         }
       } else {
         // It is a raw Zod Schema
-        schema = definition;
+        schema = definition as ZodType;
       }
 
       // Check for 'format: binary' metadata (from zFile/zStream)

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "composite": true,
-    "traceResolution": true,
+    "traceResolution": false,
     "target": "ESNext",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -11,9 +11,7 @@
     "strict": true,
     "baseUrl": "./src",
     "paths": {
-      "@app/*": ["*"],
-      "@micro/routes": ["../@micro/routes/src/index.ts"],
-      "@micro/routes/*": ["../@micro/routes/src/*"]
+      "@app/*": ["*"]
     }
   },
   "references": [

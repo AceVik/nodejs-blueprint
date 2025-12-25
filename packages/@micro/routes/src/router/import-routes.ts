@@ -24,12 +24,12 @@ function setMethodFromExportName(exportName: string): RequestMethod {
  * @param routePath - The base route path for the loaded routes.
  * @returns A promise that resolves to an array of loaded routes.
  */
-async function loadRoutesFromFile(routesFilepath: string, routePath: string): Promise<Route<never>[]> {
+async function loadRoutesFromFile(routesFilepath: string, routePath: string): Promise<Route<never, never>[]> {
   // Ensure an absolute file URL is used for dynamic import.
   const fileUrl = `file://${routesFilepath}`;
   const moduleExports = await import(fileUrl);
 
-  const routes: Route<never>[] = [];
+  const routes: Route<never, never>[] = [];
   for (const exportName in moduleExports) {
     const exported = moduleExports[exportName];
     if (exported instanceof Route) {
@@ -51,7 +51,7 @@ async function loadRoutesFromFile(routesFilepath: string, routePath: string): Pr
           value: routePath,
         });
       }
-      routes.push(exported as unknown as Route<never>);
+      routes.push(exported as unknown as Route<never, never>);
     }
   }
   return routes;
@@ -65,7 +65,7 @@ async function loadRoutesFromFile(routesFilepath: string, routePath: string): Pr
  * @param basePath - The base URL path for the routes (default: '/').
  * @returns A promise that resolves to an array of all imported routes.
  */
-export async function importRoutes(routesPath: string, basePath: string = '/'): Promise<Route<never>[]> {
+export async function importRoutes(routesPath: string, basePath: string = '/'): Promise<Route<never, never>[]> {
   // Make routesPath absolute if it isn't already.
   const absoluteRoutesPath = resolve(routesPath);
   let lookingForRoutes = true;

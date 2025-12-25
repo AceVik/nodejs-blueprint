@@ -7,7 +7,7 @@ import type { RouteHandler, RouteHandlerArgs } from './route-handler.type.js';
 import type { RouteParams, RouteParamValues } from './param/route-params.type.js';
 import type { HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
 import type { RouteAvailability, RouteMeta, RouteRequestMethod, RouteResponses } from './route-options.type.js';
-import type { RouteInterceptorDefinitions } from '../../lib/route/route-interceptors.type.js';
+import type { RouteInterceptorDefinition } from './route-interceptors.type.js';
 import { OpenApiBase } from '../openapi/openapi-base.class.js';
 
 /**
@@ -65,7 +65,7 @@ export class Route<S extends RouteParams, R extends RouteResponses> extends Open
     handler: RouteHandler<S, R>,
     public readonly hostnames: RouteAvailability,
     public readonly params?: S,
-    public readonly interceptors?: RouteInterceptorDefinitions,
+    public readonly interceptors?: ReadonlyArray<RouteInterceptorDefinition>,
     responses?: R,
   ) {
     super();
