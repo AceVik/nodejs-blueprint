@@ -8,29 +8,27 @@ import {
   TemplatedApp,
   type AppOptions,
 } from 'uWebSockets.js';
-import type { ZodType } from 'zod';
 import type { InfoObject, OpenAPIObject } from 'openapi3-ts/oas31';
 
 import type { CreateRoutesAppOptions } from './create-routes-app-params.type.js';
-import { type Hostname, Route, type RouteError } from '../route/index.js';
-import { Request, Response, HttpResult, isHttpResult, HttpError, HttpStatus, getStatusPhrase } from '../http/index.js';
-import { OpenApiGenerator } from '../openapi/openapi-generator.js';
-import { registerRouteWithApp } from './register-route.util.js';
+import { type Hostname, Route } from '../route/index.js';
 import {
+  Request,
+  Response,
+  HttpResult,
+  isHttpResult,
   isOmitted,
   type Interceptor,
   isRequestInterceptor,
   isResponseInterceptor,
   type RequestInterceptor,
-  type ResponseInterceptor,
+  type ResponseInterceptor, ResultableResponse,
 } from '../http/index.js';
+import { OpenApiGenerator } from '../openapi/openapi-generator.js';
+import { registerRouteWithApp } from './register-route.util.js';
 import { mergeInterceptors } from '../http/interceptors/interceptors.utils.js';
 import type { RouteInterceptorDefinition } from '../route/route-interceptors.type.js';
-import { executeRoute } from './route-executor.js';
-import { ResultMessage } from '../core/index.js';
-
-// Note: You should export this from your index or import it from the created file location
-import { ContentNegotiationInterceptor } from '../http/interceptors/response/defaults/content-negotiation.interceptor.js';
+import { responseJsonSerializer, resultNormalizer } from '../http/interceptors/response/presets/index.js';
 
 type UWSListenCallback = (listenSocket: us_listen_socket) => (void | Promise<void>);
 
@@ -42,10 +40,10 @@ export class RoutesApp {
   private readonly rawApp: TemplatedApp;
 
   private _serverNames: Hostname[] = [];
-  private _routes: Route<never>[] = [];
+  private _routes: Route<never, never>[] = [];
 
-  private _globalRequestInterceptors: RequestInterceptor<ZodType>[] = [];
-  private _globalResponseInterceptors: ResponseInterceptor<ZodType>[] = [];
+  private _globalRequestInterceptors: RequestInterceptor<any>[] = [];
+  private _globalResponseInterceptors: ResponseInterceptor<any>[] = [];
 
   private _interceptorsArePrecalculated = false;
 
@@ -53,7 +51,7 @@ export class RoutesApp {
     return this._serverNames;
   }
 
-  public get routes(): readonly Route<never>[] {
+  public get routes(): readonly Route<never, never>[] {
     return this._routes;
   }
 
@@ -67,9 +65,8 @@ export class RoutesApp {
     const useSSL = !!(appOptions.key_file_name && appOptions.cert_file_name);
     this.rawApp = useSSL ? SSLApp(appOptions) : App(appOptions);
 
-    // Register default global interceptors
-    // This handles the "Request determines Response" logic (Accept header -> JSON/Text)
-    this._globalResponseInterceptors.push(new ContentNegotiationInterceptor());
+    this._globalResponseInterceptors.push(resultNormalizer);
+    this._globalResponseInterceptors.push(responseJsonSerializer);
 
     process.on('SIGINT', () => {
       this.rawApp.close();
@@ -111,10 +108,10 @@ export class RoutesApp {
    * Registers interceptors, error middlewares, or routes with the application.
    * Automatically sorts interceptors into Request or Response stacks.
    *
-   * @param items - The interceptors, error middlewares, or routes to register.
+   * @param items - The interceptors or routes to register.
    * @returns The RoutesApp instance for chaining.
    */
-  public use(...items: (Interceptor<any> | Route<never>)[]): this {
+  public use(...items: (Interceptor<any> | Route<never, never>)[]): this {
     for (const item of items) {
       if (item instanceof Route) {
         this.addRoute(item);
@@ -177,7 +174,7 @@ export class RoutesApp {
   // Internal Logic
   // -------------------------------------------------------------------------
 
-  private addRoute(route: Route<never>) {
+  private addRoute(route: Route<never, never>) {
     this._routes.push(route);
     const routeHandler = this.createRouteHandler(route);
 
@@ -199,97 +196,84 @@ export class RoutesApp {
     }
   }
 
-  /**
-   * Creates the core handler function for uWebSockets.js.
-   * Handles lifecycle: Setup -> Execution -> Normalization -> Sending -> Error Handling.
-   */
-  private createRouteHandler(route: Route<never>) {
+  private createRouteHandler(route: Route<never, never>) {
     const self = this;
 
     return async function (rawRes: HttpResponse, rawReq: HttpRequest) {
-      let req: Request | undefined;
-      let res: Response | undefined;
+      const reqResult = Request.init(rawReq, rawRes);
+      const resResult = Response.init(rawRes);
+
+      if (!reqResult.isOk() || !resResult.isOk()) {
+        reqResult.includeMessages(resResult);
+        // TODO: Handle errors - maybe we need sth. like this.handleGlobalError(reqResult)
+        return;
+      }
+
+      const req = reqResult.unwrap()!;
+      const res = resResult.unwrap()!;
       let onAbortedHandler: (() => void) | undefined;
 
-      // 1. Register Abort Handler (Critical for stability)
+      // Ensure that if the client disconnects prematurely, we stop processing
       rawRes.onAborted(() => {
         if (onAbortedHandler) onAbortedHandler();
       });
 
       try {
-        // 2. Initialize Wrapper Classes
-        req = new Request(rawReq, rawRes);
-        res = new Response(rawRes, rawReq);
+        // --- Request Interceptor Phase ---
+        // Iterate linearly through request interceptors (Guards, Context, Logging).
+        // If any interceptor returns `false`, it acts as a circuit breaker,
+        // stopping the chain immediately (e.g. Auth Guard failed).
+        const requestInterceptors = route.beforeInterceptors;
+        let chainContinued = true;
 
-        // 3. Define Core Logic (Handler + Interceptors)
-        const coreHandler = async () => {
-          return await route.handleRequest(req!, res!, self, (handler) => {
-            onAbortedHandler = handler;
-          });
-        };
-
-        // 4. Execute Interceptor Chain
-        const rawResult = await executeRoute(req, res, route, coreHandler);
-
-        // 5. Normalize Result to HttpResult
-        // This ensures the Response class always receives a unified structure
-        let finalResult: HttpResult<unknown>;
-
-        if (isHttpResult(rawResult)) {
-          finalResult = rawResult;
-        } else {
-          // Wrap primitives or objects implicitly in 200 OK
-          finalResult = HttpResult.ok(rawResult);
+        for (const interceptor of requestInterceptors) {
+          const result = await interceptor.intercept({ req, res, route });
+          if (result === false) {
+            chainContinued = false;
+            break;
+          }
         }
 
-        // 6. Send Response
-        // The Response class is "dumb" and optimized for single-syscall writing
+        // --- Core Execution Phase ---
+        // Only run the handler if the request interceptor chain was not broken.
+        // We wrap the user handler execution to capture the abort handler.
+        let rawResult: ResultableResponse | null = null;
+        if (chainContinued) {
+          rawResult = await route.handleRequest(req, res, self, (handler) => {
+            onAbortedHandler = handler;
+          });
+        }
+
+        // --- Response Interceptor Phase ---
+        // Pipeline model: The output of one interceptor (or the handler) is passed
+        // as the input to the next. Used for transformation, serialization, enveloping.
+        const responseInterceptors = route.afterInterceptors;
+        let currentResult = rawResult;
+
+        for (const interceptor of responseInterceptors) {
+          currentResult = await interceptor.intercept({
+            req,
+            res,
+            route,
+            result: currentResult,
+          });
+        }
+
+        // --- Normalization Phase ---
+        // Ensure the final result is a uniform HttpResult structure before sending.
+        // If the chain was aborted (undefined result) or a plain value returned, wrap it.
+        let finalResult: HttpResult<unknown>;
+
+        if (isHttpResult(currentResult)) {
+          finalResult = currentResult;
+        } else {
+          finalResult = HttpResult.ok(currentResult);
+        }
+
         res.sendResult(finalResult);
 
       } catch (error: unknown) {
-        // 7. Global Error Handler
-        // If the response is already done or aborted, we cannot send an error.
-        if (res?.done || res?.aborted || (!res && rawRes.aborted)) {
-          console.error('Error after response sent/aborted:', error);
-          return;
-        }
-
-        // Determine Status and Message
-        // If it's a known HttpError (e.g., 404, 400), use its status. Otherwise 500.
-        const isHttpError = error instanceof HttpError;
-        const status = isHttpError ? error.status : HttpStatus.INTERNAL_SERVER_ERROR;
-        const statusPhrase = getStatusPhrase(status);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-
-        // Create the standardized RouteError body
-        const errorBody: RouteError = {
-          status,
-          statusPhrase,
-          messages: [
-            ResultMessage.error(errorMessage, isHttpError ? error.errors : undefined),
-          ],
-        };
-
-        // Create Result Container
-        const errorResult = HttpResult.ok(errorBody).status(status);
-
-        // If 'res' was initialized, use it (safe).
-        // If 'res' failed to init (very rare constructor error), use raw fallback.
-        if (res) {
-          try {
-            res.sendResult(errorResult);
-          } catch (sendError) {
-            console.error('Failed to send error response:', sendError);
-            // Fallback: Force close to avoid hanging
-            if (!res.aborted) res.raw.close();
-          }
-        } else {
-          // Fallback if Request/Response class creation failed
-          rawRes.cork(() => {
-            rawRes.writeStatus(`${status} ${statusPhrase}`);
-            rawRes.end(JSON.stringify(errorBody));
-          });
-        }
+        // TODO: Need a fresh global error handler
       }
     };
   }
@@ -314,7 +298,6 @@ export class RoutesApp {
         }
       }
 
-      // 1. Merge Globals and Locals (handling Omit)
       const mergedRequestInterceptors = mergeInterceptors(
         this._globalRequestInterceptors,
         localRequestDefs,
@@ -325,7 +308,6 @@ export class RoutesApp {
         localResponseDefs,
       ) as ResponseInterceptor[];
 
-      // 2. Resolve Dependencies (DFS Topological Sort)
       route.beforeInterceptors = this.resolveInterceptorChain(mergedRequestInterceptors);
       route.afterInterceptors = this.resolveInterceptorChain(mergedResponseInterceptors);
     }
@@ -333,9 +315,6 @@ export class RoutesApp {
     this._interceptorsArePrecalculated = true;
   }
 
-  /**
-   * Resolves dependencies for a list of interceptors using Depth-First Search.
-   */
   private resolveInterceptorChain<T extends Interceptor<any>>(interceptors: T[]): T[] {
     const visited = new Set<T>();
     const result: T[] = [];

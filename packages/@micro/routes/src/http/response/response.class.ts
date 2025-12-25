@@ -1,7 +1,8 @@
-import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
+import type { HttpResponse } from 'uWebSockets.js';
 import { Readable } from 'node:stream';
 import { getStatusPhrase } from '../status/index.js';
-import type { HttpResult } from '../result/http-result.class.js';
+import type { HttpResult } from '../result/index.js';
+import { Result } from '../../core/index.js';
 
 /**
  * Wrapper around the uWebSockets.js HttpResponse.
@@ -24,10 +25,8 @@ export class Response {
     return this._done;
   }
 
-  constructor(
+  private constructor(
     private readonly res: HttpResponse,
-    // @ts-expect-error TS6138: Kept for potential internal usage / debugging
-    private readonly req: HttpRequest,
   ) {
     this.res.onAborted(() => {
       this._aborted = true;
@@ -42,7 +41,7 @@ export class Response {
   public sendResult(result: HttpResult<unknown>): void {
     if (this._done || this._aborted) return;
 
-    const body = result.body;
+    const body = result.unwrap();
 
     // ---------------------------------------------------------
     // Case A: Streams (Cannot be fully corked sync)
@@ -94,17 +93,18 @@ export class Response {
     const headers = result.headers;
     for (const key in headers) {
       const val = headers[key];
-      if (val) this.res.writeHeader(key, val);
+      if (val) this.res.writeHeader(key, val!.toString());
     }
 
     // 3. Cookies
+    /* Ignore cookies for now.
     const cookies = result.cookies;
     const len = cookies.length;
     if (len > 0) {
       for (let i = 0; i < len; i++) {
         this.res.writeHeader('Set-Cookie', cookies[i]!);
       }
-    }
+    }*/
   }
 
   /**
@@ -142,5 +142,30 @@ export class Response {
       }
       this._done = true;
     });
+  }
+
+  private static _instance: Response | null = null;
+
+  /**
+   * Gets the singleton instance of the Response class.
+   */
+  public static get instance(): Response | null {
+    return Response._instance;
+  }
+
+  /**
+   * Initializes the Response singleton instance.
+   * @param res - The raw uWebSockets.js HttpResponse.
+   */
+  public static init(res: HttpResponse): Result<Response> {
+    try {
+      if (!Response._instance) {
+        Response._instance = new Response(res);
+      }
+
+      return Result.ok(Response._instance);
+    } catch (err: unknown) {
+      return Result.fail('Failed to initialize the response object.', '', 'Response initialization error', err);
+    }
   }
 }

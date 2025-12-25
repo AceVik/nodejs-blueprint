@@ -1,14 +1,8 @@
-import type { z } from 'zod';
 import type { Awaitable } from '../core/index.js';
 import type { RoutesApp } from '../server/index.js';
 import type { RouteParamValues, RouteParams } from './param/route-params.type.js';
 import type { RouteResponses, InferResponseTypes } from './route-options.type.js';
-import type { Request, Response, HttpResult, RequestInterceptor } from '../http/index.js';
-
-/**
- * Function signature for resolving dependency injection from interceptors.
- */
-export type RouteResolver = <T>(interceptor: RequestInterceptor<z.ZodType<T>>) => T | undefined;
+import type { Request, Response, HttpResult } from '../http/index.js';
 
 /**
  * Arguments passed to the route handler.
@@ -19,7 +13,6 @@ export type RouteHandlerArgs<S extends RouteParams> = {
   res: Response;
   params: RouteParamValues<S>;
   onAborted: (handler: () => void) => void;
-  resolve: RouteResolver;
 };
 
 /**

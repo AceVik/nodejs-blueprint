@@ -2,6 +2,7 @@ import type { HttpRequest, HttpResponse } from 'uWebSockets.js';
 import type { QueryParamsHandler, RequestMethod } from '../../http/index.js';
 import { CookieParamsHandler, HeadersHandler, PathParamsHandler } from './handlers/index.js';
 import { ContextContainer } from '../context/context-container.class.js';
+import { Result } from '../../core/index.js';
 
 const dec = new TextDecoder('ascii');
 
@@ -108,10 +109,36 @@ export class Request extends ContextContainer {
    * @param req - The raw uWebSockets.js HttpRequest.
    * @param res - The raw uWebSockets.js HttpResponse (needed for address decoding).
    */
-  constructor(private readonly req: HttpRequest, private readonly res: HttpResponse) {
+  private constructor(private readonly req: HttpRequest, private readonly res: HttpResponse) {
     super();
     this.path = new PathParamsHandler(req);
     this.headers = new HeadersHandler(req);
     this.cookies = new CookieParamsHandler(req);
+  }
+
+  private static _instance: Request | null = null;
+
+  /**
+   * Gets the singleton instance of the Request class.
+   */
+  public static get instance(): Request | null {
+    return Request._instance;
+  }
+
+  /**
+   * Initializes the Request singleton instance.
+   * @param req - The raw uWebSockets.js HttpRequest.
+   * @param res - The raw uWebSockets.js HttpResponse (needed for address decoding).
+   */
+  public static init(req: HttpRequest, res: HttpResponse): Result<Request> {
+    try {
+      if (!Request._instance) {
+        Request._instance = new Request(req, res);
+      }
+
+      return Result.ok(Request._instance);
+    } catch (err: unknown) {
+      return Result.fail('Failed to initialize the request object.', '', 'Request initialization error', err);
+    }
   }
 }

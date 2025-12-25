@@ -1,8 +1,7 @@
 import {
   ResponseInterceptor,
-  type ResponseInterceptorHandler,
+  type ResponseInterceptorHandler, type ResultableResponse,
 } from './response-interceptor.class.js';
-import type { Resultable } from '../../../core/index.js';
 
 /**
  * Creates a generic ResponseInterceptor from a function.
@@ -10,7 +9,7 @@ import type { Resultable } from '../../../core/index.js';
  *
  * @param handler - The function to execute.
  */
-export function responseInterceptor<In = Resultable, Out = Resultable>(
+export function responseInterceptor<In = ResultableResponse, Out = In>(
   handler: ResponseInterceptorHandler<In, Out>,
 ): ResponseInterceptor<In, Out> {
   return new ResponseInterceptor(handler);

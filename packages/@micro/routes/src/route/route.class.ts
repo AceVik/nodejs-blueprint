@@ -1,13 +1,13 @@
 import { ZodError } from 'zod';
 import type { RoutesApp } from '../server/index.js';
 import { type OpenApiExtender, routeMeta } from '../openapi/index.js';
-import { type Request, type Response, BadRequestError } from '../http/index.js';
+import { type Request, type Response, BadRequestError, type ResultableResponse } from '../http/index.js';
 import type { RequestInterceptor, ResponseInterceptor } from '../http/index.js';
 import type { RouteHandler, RouteHandlerArgs } from './route-handler.type.js';
 import type { RouteParams, RouteParamValues } from './param/route-params.type.js';
 import type { HttpErrorErrors } from '../http/errors/http-error-errors.type.js';
-import type { RouteInterceptorDefinitions } from './route-interceptors.type.js';
 import type { RouteAvailability, RouteMeta, RouteRequestMethod, RouteResponses } from './route-options.type.js';
+import type { RouteInterceptorDefinitions } from '../../lib/route/route-interceptors.type.js';
 import { OpenApiBase } from '../openapi/openapi-base.class.js';
 
 /**
@@ -161,7 +161,7 @@ export class Route<S extends RouteParams, R extends RouteResponses> extends Open
    * @returns The raw result returned by the handler.
    * @throws {BadRequestError} If parameter validation fails.
    */
-  public async handleRequest(req: Request, res: Response, app: RoutesApp, onAborted: (handler: () => void) => void): Promise<unknown> {
+  public async handleRequest(req: Request, res: Response, app: RoutesApp, onAborted: (handler: () => void) => void): Promise<ResultableResponse> {
     const { params, errors: paramErrors } = this.extractParams(req);
 
     if (paramErrors.length > 0) {
@@ -174,9 +174,8 @@ export class Route<S extends RouteParams, R extends RouteResponses> extends Open
       res,
       onAborted,
       params,
-      resolve: (interceptor) => req.resolve(interceptor),
     };
 
-    return this.exec(routeHandlerArgs);
+    return this.exec(routeHandlerArgs) as Promise<ResultableResponse>;
   }
 }

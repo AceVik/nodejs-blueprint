@@ -1,22 +1,25 @@
-import type { Awaitable, Resultable } from '../../../core/index.js';
+import { Awaitable, Result, Resultable } from '../../../core/index.js';
 import { type InterceptBaseParams, Interceptor } from '../interceptor.class.js';
+import { HttpResult } from '../../result/index.js';
+
+export type ResultableResponse = Resultable | Result<Resultable> | HttpResult<Resultable>;
 
 /**
  * Arguments passed to a ResponseInterceptor.
  */
-export type ResponseInterceptParams<In = Resultable> = InterceptBaseParams & {
+export type ResponseInterceptParams<In = ResultableResponse> = InterceptBaseParams & {
   /**
    * The result returned by the route handler or the previous response interceptor.
    * Can be modified, replaced, or returned as-is.
    */
-  result: In;
+  result: In | null;
 };
 
 /**
  * The specific function signature for response interceptors.
  * Must return the transformed result (or Promise thereof).
  */
-export type ResponseInterceptorHandler<In = Resultable, Out = Resultable> =
+export type ResponseInterceptorHandler<In = ResultableResponse, Out = In> =
   (params: ResponseInterceptParams<In>) => Awaitable<Out>;
 
 /**
@@ -26,7 +29,7 @@ export type ResponseInterceptorHandler<In = Resultable, Out = Resultable> =
  * @template In - The type of the result data coming into this interceptor.
  * @template Out - The type of the result data returned by this interceptor.
  */
-export class ResponseInterceptor<In = Resultable, Out = Resultable>
+export class ResponseInterceptor<In = ResultableResponse, Out = In>
   extends Interceptor<ResponseInterceptorHandler<In, Out>>
 {
   /**
@@ -58,7 +61,7 @@ export class ResponseInterceptor<In = Resultable, Out = Resultable>
  * Type guard to check if a value is a ResponseInterceptor.
  * Allows explicitly specifying expected In/Out types for stricter checks if needed.
  */
-export function isResponseInterceptor<In = Resultable, Out = Resultable>(
+export function isResponseInterceptor<In = ResultableResponse, Out = In>(
   value: unknown,
 ): value is ResponseInterceptor<In, Out> {
   return value instanceof ResponseInterceptor;
