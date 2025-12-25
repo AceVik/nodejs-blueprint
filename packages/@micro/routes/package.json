@@ -11,7 +11,8 @@
     "./router": "./lib/router/index.js",
     "./openapi": "./lib/openapi/index.js",
     "./http": "./lib/http/index.js",
-    "./http/presets": "./lib/http/presets.js"
+    "./http/presets": "./lib/http/presets.js",
+    "./param": "./lib/route/param/index.js"
   },
   "scripts": {
     "build": "rm -rf lib && tsc",

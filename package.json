@@ -9,7 +9,7 @@
     "dev:inspect": "npm run -w app dev:inspect",
     "start": "npm run -w app start",
     "routes": "npm run -w app routes",
-    "build": "npm run -w @micro/routes build && npm run -w app build",
+    "build": "tsc -b -f",
     "build:micro": "npm run -w @micro\/routes build",
     "lint": "npm run -w app lint",
     "test": "npm run -w app test",
